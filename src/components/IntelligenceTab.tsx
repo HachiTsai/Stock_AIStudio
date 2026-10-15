@@ -24,6 +24,8 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Upload,
+  FileCode,
 } from 'lucide-react';
 import {
   IntelligenceSignal,
@@ -42,6 +44,9 @@ import {
   readDriveFileText,
   saveIntelligenceMarkdownToDrive,
   formatSignalAsNoteMarkdown,
+  DEFAULT_SHARED_FOLDER_ID,
+  DEFAULT_SHARED_FOLDER_URL,
+  DEFAULT_SHARED_FOLDER_NAME,
 } from '../services/driveIntelligenceService';
 import { googleSignIn, getAccessToken } from '../services/googleAuth';
 
@@ -64,8 +69,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   onApplyScenarioToModel,
   onSaveToNotesLibrary,
 }) => {
-  // Input mode: 'paste' vs 'drive'
-  const [inputMode, setInputMode] = useState<'paste' | 'drive'>('paste');
+  // Input mode: 'paste' vs 'drive' vs 'local_md'
+  const [inputMode, setInputMode] = useState<'paste' | 'drive' | 'local_md'>('paste');
   const [rawText, setRawText] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [sourceType, setSourceType] = useState<SignalSourceType>('app_paste');
@@ -76,8 +81,9 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   // Draft signal after extraction (for preview & user tweak before saving)
   const [draftSignal, setDraftSignal] = useState<Omit<IntelligenceSignal, 'id'> | null>(null);
 
-  // Google Drive file browser state
+  // Google Drive file browser state (exclusively connected to designated Shared Folder)
   const [driveFiles, setDriveFiles] = useState<DriveFileSummary[]>([]);
+  const [driveFormatFilter, setDriveFormatFilter] = useState<'all' | 'md' | 'doc' | 'sheet' | 'slide'>('all');
   const [driveSearchQuery, setDriveSearchQuery] = useState('');
   const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
   const [readingFileId, setReadingFileId] = useState<string | null>(null);
@@ -90,14 +96,18 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   const [driveConfirmModal, setDriveConfirmModal] = useState<{
     isOpen: boolean;
     fileName: string;
-    folderPath: string;
+    folderId: string;
+    folderName: string;
+    folderUrl: string;
     markdownContent: string;
     targetSignal?: IntelligenceSignal;
     isSaving: boolean;
   }>({
     isOpen: false,
     fileName: '',
-    folderPath: 'Project_財商工程/情報與趨勢',
+    folderId: DEFAULT_SHARED_FOLDER_ID,
+    folderName: DEFAULT_SHARED_FOLDER_NAME,
+    folderUrl: DEFAULT_SHARED_FOLDER_URL,
     markdownContent: '',
     isSaving: false,
   });
@@ -200,19 +210,23 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
     }
   };
 
-  // 3. Google Drive File Listing & Reading (Docs / Sheets / Slides)
-  const handleLoadDriveFiles = async () => {
+  // 3. Google Drive File Listing & Reading (Docs / Sheets / Slides / Markdown) from designated Shared Folder
+  const handleLoadDriveFiles = async (queryOverride?: string) => {
     setIsLoadingDriveFiles(true);
+    const query = queryOverride !== undefined ? queryOverride : driveSearchQuery;
     try {
       let token = await getAccessToken();
       if (!token) {
         const authRes = await googleSignIn();
         if (!authRes) return;
       }
-      const files = await listDriveResearchFiles(driveSearchQuery);
+      const files = await listDriveResearchFiles(query, DEFAULT_SHARED_FOLDER_ID);
       setDriveFiles(files);
+      if (files.length === 0) {
+        showNotice('success', '已連線共用資料夾，目前尚無相符檔案。您可將分析筆記或報告存入此資料夾！');
+      }
     } catch (err: any) {
-      showNotice('error', err.message || '讀取 Google Drive 檔案列表失敗');
+      showNotice('error', err.message || '讀取 Google Drive 共用資料夾檔案失敗');
     } finally {
       setIsLoadingDriveFiles(false);
     }
@@ -225,20 +239,38 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       setRawText(`【來源檔案：${file.name}】\n${text}`);
       setSourceUrl(file.webViewLink || '');
       setSourceType(detectedType);
-      setInputMode('paste');
-      // Immediately run deterministic rule extraction so user sees instant results
+      
+      // Run deterministic rule extraction with enhanced Markdown/YAML/CLAUDE.md structure support
       const extracted = extractSignalByRules(
-        `【${file.name}】\n${text}`,
+        text,
         file.webViewLink || '',
         detectedType,
         '00882'
       );
       setDraftSignal(extracted);
-      showNotice('success', `已從 Google Drive 讀取「${file.name}」並完成初步規則解析！`);
+      showNotice('success', `✨ 已從共用資料夾載入「${file.name}」並完成結構化解析！請檢視下方預覽後點擊「確認加入情報天平」。`);
     } catch (err: any) {
       showNotice('error', err.message || '讀取檔案內容失敗');
     } finally {
       setReadingFileId(null);
+    }
+  };
+
+  // Local .md file picker & parser
+  const handleLocalFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setRawText(`【本機 .md 檔案：${file.name}】\n${text}`);
+      setSourceUrl('');
+      setSourceType('local_md');
+      
+      const extracted = extractSignalByRules(text, '', 'local_md', '00882');
+      setDraftSignal(extracted);
+      showNotice('success', `✨ 已成功讀取本機「${file.name}」並完成結構化解析！請檢視下方卡片後點擊「確認加入情報天平」。`);
+    } catch (err: any) {
+      showNotice('error', err.message || '讀取本機 .md 檔案失敗');
     }
   };
 
@@ -270,7 +302,9 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
     setDriveConfirmModal({
       isOpen: true,
       fileName,
-      folderPath: 'Project_財商工程/情報與趨勢',
+      folderId: DEFAULT_SHARED_FOLDER_ID,
+      folderName: DEFAULT_SHARED_FOLDER_NAME,
+      folderUrl: DEFAULT_SHARED_FOLDER_URL,
       markdownContent,
       targetSignal: signal,
       isSaving: false,
@@ -292,7 +326,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       const savedFile = await saveIntelligenceMarkdownToDrive({
         fileName: driveConfirmModal.fileName,
         markdownContent: driveConfirmModal.markdownContent,
-        folderPath: driveConfirmModal.folderPath,
+        folderId: driveConfirmModal.folderId,
       });
 
       if (driveConfirmModal.targetSignal) {
@@ -303,9 +337,16 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
         });
       }
 
-      const folderInfo = savedFile.targetFolder ? `（資料夾：${savedFile.targetFolder}）` : '';
-      setDriveConfirmModal({ isOpen: false, fileName: '', folderPath: 'Project_財商工程/情報與趨勢', markdownContent: '', isSaving: false });
-      showNotice('success', `☁️ 已成功將情報儲存至 Google Drive ${folderInfo}：${savedFile.name}！`);
+      setDriveConfirmModal((prev) => ({
+        ...prev,
+        isOpen: false,
+        fileName: '',
+        markdownContent: '',
+        isSaving: false,
+      }));
+      showNotice('success', `☁️ 已成功將情報儲存至 Google Drive 共用資料夾：${savedFile.name}！`);
+      // Auto refresh file list
+      handleLoadDriveFiles();
     } catch (err: any) {
       setDriveConfirmModal((prev) => ({ ...prev, isSaving: false }));
       showNotice('error', err.message || '儲存至 Google Drive 失敗');
@@ -566,7 +607,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           </div>
 
           {/* Input Source Switcher */}
-          <div className="flex p-1 rounded-xl bg-slate-950 border border-slate-800 self-start">
+          <div className="flex flex-wrap p-1 rounded-xl bg-slate-950 border border-slate-800 self-start gap-1">
             <button
               onClick={() => setInputMode('paste')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
@@ -590,12 +631,24 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               }`}
             >
               <Database className="w-3.5 h-3.5" />
-              <span>從 Google Drive 讀取檔案</span>
+              <span>從共用 Google Drive 讀取</span>
+            </button>
+            <button
+              onClick={() => setInputMode('local_md')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                inputMode === 'local_md'
+                  ? 'bg-purple-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>讀取本機 .md 檔案</span>
             </button>
           </div>
         </div>
 
-        {inputMode === 'paste' ? (
+        {/* Mode 1: Paste Text or URL */}
+        {inputMode === 'paste' && (
           <div className="space-y-4">
             {/* Optional URL bar */}
             <div className="flex flex-col sm:flex-row gap-2">
@@ -659,81 +712,291 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               </div>
             </div>
           </div>
-        ) : (
-          /* Google Drive File Picker Panel */
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
+        )}
+
+        {/* Mode 2: Read Local .md File */}
+        {inputMode === 'local_md' && (
+          <div className="p-8 rounded-2xl bg-slate-950/70 border-2 border-dashed border-purple-500/40 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+              <FileCode className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-100">選擇本機 Markdown (.md) 分析筆記</h3>
+              <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+                支援讀取電腦中的 <code className="text-purple-300 font-mono font-semibold">.md</code> 格式檔案。系統將直接在瀏覽器內進行結構化解析，自動提煉硬數據、量化指標與股利邊際影響推估！
+              </p>
+            </div>
+            <div className="flex justify-center pt-2">
+              <label className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/20 transition cursor-pointer flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                <span>點擊選擇 .md 檔案</span>
                 <input
-                  type="text"
-                  value={driveSearchQuery}
-                  onChange={(e) => setDriveSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLoadDriveFiles()}
-                  placeholder="搜尋您 Google Drive 中的文件名稱（支援 Google Docs、Sheets、Slides、Markdown）..."
-                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200"
+                  type="file"
+                  accept=".md,.markdown,text/markdown,text/plain"
+                  onChange={handleLocalFileSelect}
+                  className="hidden"
                 />
-              </div>
-              <button
-                type="button"
-                onClick={handleLoadDriveFiles}
-                disabled={isLoadingDriveFiles}
-                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
-                <span>{isLoadingDriveFiles ? '讀取中...' : '搜尋雲端硬碟檔案'}</span>
-              </button>
+              </label>
             </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
-              {driveFiles.length === 0 ? (
-                <div className="col-span-2 py-8 text-center text-xs text-slate-500 bg-slate-950/50 rounded-xl border border-slate-800">
-                  {isLoadingDriveFiles
-                    ? '正在從 Google Drive 載入您的文件與試算表...'
-                    : '點擊上方「搜尋雲端硬碟檔案」授權並列出您的 Google Docs / Sheets / Slides 檔案'}
+        {/* Mode 3: Google Drive Shared Folder File Picker Panel */}
+        {inputMode === 'drive' && (
+          <div className="space-y-4">
+            {/* Designated Shared Folder Connection Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-950/90 rounded-xl border border-teal-500/30">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 shrink-0">
+                  <Database className="w-4 h-4" />
                 </div>
-              ) : (
-                driveFiles.map((f) => {
-                  const typeLabel = f.mimeType.includes('document')
-                    ? 'Google Doc'
-                    : f.mimeType.includes('spreadsheet')
-                    ? 'Google Sheet'
-                    : f.mimeType.includes('presentation')
-                    ? 'Google Slides'
-                    : 'Markdown / Text';
+                <div>
+                  <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                    <span>已連線共用情報資料夾</span>
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono">
+                      專屬資料夾鎖定
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                    <span>資料夾 ID:</span>
+                    <code className="text-teal-300 font-mono">{DEFAULT_SHARED_FOLDER_ID}</code>
+                  </div>
+                </div>
+              </div>
 
-                  return (
-                    <div
-                      key={f.id}
-                      className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 flex items-center justify-between gap-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 font-mono text-[10px]">
-                            {typeLabel}
-                          </span>
-                          <span className="text-xs font-bold text-slate-200 truncate">{f.name}</span>
-                        </div>
-                        {f.modifiedTime && (
-                          <div className="text-[10px] text-slate-500 mt-1 font-mono">
-                            更新：{f.modifiedTime.split('T')[0]}
-                          </div>
-                        )}
-                      </div>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <a
+                  href={DEFAULT_SHARED_FOLDER_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 border border-teal-500/30 text-xs font-medium transition flex items-center gap-1.5"
+                >
+                  <span>開啟 Drive 共用資料夾</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
 
-                      <button
-                        type="button"
-                        onClick={() => handleReadDriveFile(f)}
-                        disabled={readingFileId === f.id}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-medium shrink-0 transition cursor-pointer"
-                      >
-                        {readingFileId === f.id ? '讀取中...' : '讀取並解析'}
-                      </button>
-                    </div>
-                  );
-                })
-              )}
+                <button
+                  type="button"
+                  onClick={() => handleLoadDriveFiles()}
+                  disabled={isLoadingDriveFiles}
+                  className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingDriveFiles ? '載入中...' : '重新整理'}</span>
+                </button>
+              </div>
             </div>
+
+            {/* Format Filter Bar (Includes dedicated .md format filter) */}
+            {(() => {
+              const mdCount = driveFiles.filter(
+                (f) =>
+                  f.name.toLowerCase().endsWith('.md') ||
+                  f.name.toLowerCase().endsWith('.markdown') ||
+                  f.mimeType.includes('markdown')
+              ).length;
+              const docCount = driveFiles.filter((f) => f.mimeType.includes('document')).length;
+              const sheetCount = driveFiles.filter((f) => f.mimeType.includes('spreadsheet')).length;
+              const slideCount = driveFiles.filter((f) => f.mimeType.includes('presentation')).length;
+
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-slate-500 text-[11px] mr-1">檔案格式：</span>
+                    <button
+                      type="button"
+                      onClick={() => setDriveFormatFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        driveFormatFilter === 'all'
+                          ? 'bg-slate-800 text-white font-bold border border-slate-700'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      全部 ({driveFiles.length})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDriveFormatFilter('md')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
+                        driveFormatFilter === 'md'
+                          ? 'bg-purple-600 text-white font-bold shadow-sm'
+                          : 'text-purple-300/80 hover:text-purple-200'
+                      }`}
+                    >
+                      <FileCode className="w-3 h-3" />
+                      <span>📝 Markdown (.md) ({mdCount})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDriveFormatFilter('doc')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        driveFormatFilter === 'doc'
+                          ? 'bg-blue-600 text-white font-bold shadow-sm'
+                          : 'text-blue-300/80 hover:text-blue-200'
+                      }`}
+                    >
+                      📄 Google Docs ({docCount})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDriveFormatFilter('sheet')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        driveFormatFilter === 'sheet'
+                          ? 'bg-emerald-600 text-white font-bold shadow-sm'
+                          : 'text-emerald-300/80 hover:text-emerald-200'
+                      }`}
+                    >
+                      📊 Google Sheets ({sheetCount})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDriveFormatFilter('slide')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        driveFormatFilter === 'slide'
+                          ? 'bg-amber-600 text-white font-bold shadow-sm'
+                          : 'text-amber-300/80 hover:text-amber-200'
+                      }`}
+                    >
+                      📑 Google Slides ({slideCount})
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] font-mono text-slate-500">
+                    共用資料夾檔案清單
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Keyword Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
+              <input
+                type="text"
+                value={driveSearchQuery}
+                onChange={(e) => setDriveSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLoadDriveFiles()}
+                placeholder="搜尋共用資料夾內的檔案名稱關鍵字（支援 .md、Docs、Sheets、Slides）..."
+                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+              />
+            </div>
+
+            {/* File List Grid */}
+            {(() => {
+              const filtered = driveFiles.filter((f) => {
+                const isMd =
+                  f.name.toLowerCase().endsWith('.md') ||
+                  f.name.toLowerCase().endsWith('.markdown') ||
+                  f.mimeType.includes('markdown');
+                const isDoc = f.mimeType.includes('document');
+                const isSheet = f.mimeType.includes('spreadsheet');
+                const isSlide = f.mimeType.includes('presentation');
+
+                if (driveFormatFilter === 'md') return isMd;
+                if (driveFormatFilter === 'doc') return isDoc;
+                if (driveFormatFilter === 'sheet') return isSheet;
+                if (driveFormatFilter === 'slide') return isSlide;
+                return true;
+              });
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {filtered.length === 0 ? (
+                    <div className="col-span-2 py-8 px-4 text-center text-xs text-slate-400 bg-slate-950/50 rounded-xl border border-slate-800 space-y-2">
+                      <p>
+                        {isLoadingDriveFiles
+                          ? '正在從共用資料夾載入檔案...'
+                          : '此篩選分類下尚無檔案。您可以將 .md 筆記或報告上傳至共用資料夾，或於 APP 內點擊「儲存至 Google Drive」自動存入！'}
+                      </p>
+                      {!isLoadingDriveFiles && (
+                        <div className="pt-2 flex justify-center gap-2">
+                          <a
+                            href={DEFAULT_SHARED_FOLDER_URL}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-medium border border-slate-700 transition"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>前往共用資料夾檢視</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleLoadDriveFiles()}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium transition cursor-pointer"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>重新整理</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    filtered.map((f) => {
+                      const isMd =
+                        f.name.toLowerCase().endsWith('.md') ||
+                        f.name.toLowerCase().endsWith('.markdown') ||
+                        f.mimeType.includes('markdown');
+                      const isDoc = f.mimeType.includes('document');
+                      const isSheet = f.mimeType.includes('spreadsheet');
+                      const isSlide = f.mimeType.includes('presentation');
+
+                      return (
+                        <div
+                          key={f.id}
+                          className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 flex items-center justify-between gap-3 transition"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              {isMd ? (
+                                <span className="px-1.5 py-0.5 rounded bg-purple-900/60 text-purple-300 border border-purple-700/60 font-mono text-[10px] font-bold">
+                                  📝 Markdown (.md)
+                                </span>
+                              ) : isDoc ? (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-700/40 font-mono text-[10px]">
+                                  📄 Google Doc
+                                </span>
+                              ) : isSheet ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/40 font-mono text-[10px]">
+                                  📊 Google Sheet
+                                </span>
+                              ) : isSlide ? (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/40 font-mono text-[10px]">
+                                  📑 Google Slides
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">
+                                  檔案
+                                </span>
+                              )}
+                              <span className="text-xs font-bold text-slate-200 truncate">{f.name}</span>
+                            </div>
+                            {f.modifiedTime && (
+                              <div className="text-[10px] text-slate-500 mt-1 font-mono">
+                                更新時間：{f.modifiedTime.split('T')[0]}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleReadDriveFile(f)}
+                            disabled={readingFileId === f.id}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-medium shrink-0 transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{readingFileId === f.id ? '讀取解析中...' : '讀取並解析'}</span>
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1060,7 +1323,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               </div>
               <button
                 onClick={() =>
-                  setDriveConfirmModal({ isOpen: false, fileName: '', folderPath: 'Project_財商工程/情報與趨勢', markdownContent: '', isSaving: false })
+                  setDriveConfirmModal((prev) => ({ ...prev, isOpen: false }))
                 }
                 className="text-slate-400 hover:text-slate-200"
               >
@@ -1070,24 +1333,29 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
 
             <div className="space-y-3 text-xs text-slate-300">
               <p>
-                系統將在您的 Google Drive 建立以下獨立的新 Markdown 情報筆記檔案（不會觸碰或修改唯讀的{' '}
+                系統將在您的 Google Drive 共用資料夾建立以下獨立的新 Markdown 情報筆記檔案（不會觸碰或修改唯讀的{' '}
                 <code className="text-emerald-400">Investment_Tracker_Core</code>）：
               </p>
 
               <div className="space-y-1">
-                <label className="text-slate-400 block">📁 儲存目標資料夾（自動建立/定位）：</label>
-                <input
-                  type="text"
-                  value={driveConfirmModal.folderPath}
-                  onChange={(e) =>
-                    setDriveConfirmModal({ ...driveConfirmModal, folderPath: e.target.value })
-                  }
-                  placeholder="Project_財商工程/情報與趨勢"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-teal-300"
-                />
-                <p className="text-[10px] text-slate-500">
-                  預設存入您的 <code className="text-slate-400">Project_財商工程/情報與趨勢</code> 資料夾中。
-                </p>
+                <label className="text-slate-400 block">📁 儲存目標共用資料夾：</label>
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1 font-mono">
+                  <div className="text-emerald-300 font-bold flex items-center justify-between">
+                    <span>{driveConfirmModal.folderName}</span>
+                    <a
+                      href={driveConfirmModal.folderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-teal-400 hover:text-teal-300 underline text-[10px] flex items-center gap-1"
+                    >
+                      <span>開啟連結</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    ID: {driveConfirmModal.folderId}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -1114,7 +1382,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               <button
                 type="button"
                 onClick={() =>
-                  setDriveConfirmModal({ isOpen: false, fileName: '', folderPath: 'Project_財商工程/情報與趨勢', markdownContent: '', isSaving: false })
+                  setDriveConfirmModal((prev) => ({ ...prev, isOpen: false }))
                 }
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer"
               >

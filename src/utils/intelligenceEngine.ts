@@ -147,6 +147,84 @@ export function extractSignalByRules(
   sourceType: SignalSourceType = 'app_paste',
   defaultTicker: string = '00882'
 ): Omit<IntelligenceSignal, 'id'> {
+  // 0. Structured Markdown / ArchNote / CLAUDE.md detection
+  const hasFrontmatter = rawText.includes('---') && (rawText.includes('title:') || rawText.includes('type:'));
+  const hasMarkdownSections = rawText.includes('## 結論摘要') || rawText.includes('## 萃取硬數據') || rawText.includes('## 規則') || rawText.includes('## 摘要');
+
+  if (hasFrontmatter || hasMarkdownSections) {
+    const titleMatch = rawText.match(/^title:\s*(.+)$/m)?.[1] || rawText.match(/^#\s+(.+)$/m)?.[1];
+    const tickerMatch = rawText.match(/tickers?:\s*\[(.*?)\]/m)?.[1]?.split(',')?.[0]?.replace(/['"]/g, '').trim() ||
+      rawText.match(/\b(00\d{3,4}[A-Z]?|\d{4}\.HK|\d{4})\b/)?.[1] || defaultTicker;
+    
+    const tagsMatch = rawText.match(/tags:\s*\[(.*?)\]/m)?.[1];
+    const parsedTags = tagsMatch ? tagsMatch.split(',').map((t) => t.trim().replace(/['"]/g, '')).filter(Boolean) : [];
+
+    let dimension: SignalDimension = 'dividend_sustainability';
+    if (rawText.includes('估值安全邊際') || rawText.includes('估值與安全邊際') || rawText.includes('valuation_margin')) {
+      dimension = 'valuation_margin';
+    } else if (rawText.includes('稅費與匯率摩擦') || rawText.includes('匯率') || rawText.includes('二代健保') || rawText.includes('friction_fx')) {
+      dimension = 'friction_fx';
+    }
+
+    let direction: SignalDirection = 'neutral';
+    if (rawText.includes('正向支撐') || rawText.includes('bullish') || rawText.includes('正向 (+)')) {
+      direction = 'bullish';
+    } else if (rawText.includes('潛在風險') || rawText.includes('bearish') || rawText.includes('潛在壓抑')) {
+      direction = 'bearish';
+    }
+
+    const weightMatch = rawText.match(/權重\s*(\d)\/5/);
+    const weight = weightMatch ? parseInt(weightMatch[1], 10) : (direction !== 'neutral' ? 4 : 3);
+
+    const shiftMatch = rawText.match(/(?:對每股年配息邊際影響推估|impliedDividendShift)[：:\s]*([+-]?\d+(?:\.\d+)?)/);
+    let impliedDividendShift = shiftMatch ? parseFloat(shiftMatch[1]) : (direction === 'bullish' ? 0.03 : direction === 'bearish' ? -0.03 : 0);
+
+    // Hard Facts extraction from sections
+    const hardFacts: string[] = [];
+    const factsSection = rawText.match(/## (?:萃取硬數據|規則|事實|理由)[^\n]*\n([\s\S]*?)(?=\n## |$)/);
+    if (factsSection) {
+      const lines = factsSection[1].split('\n')
+        .map((l) => l.replace(/^[-*•\d.]+\s*/, '').trim())
+        .filter((l) => l.length >= 4 && !l.startsWith('#'));
+      hardFacts.push(...lines.slice(0, 4));
+    }
+
+    // Metrics extraction
+    const extractedMetrics: ExtractedMetric[] = [];
+    const metricMatches = Array.from(rawText.matchAll(/[-*]\s*\*\*([^*]+)\*\*[：:]\s*`?([^`\n]+)`?/g));
+    for (const m of metricMatches.slice(0, 4)) {
+      extractedMetrics.push({ label: m[1].trim(), value: m[2].trim() });
+    }
+
+    // Objective Reasoning extraction
+    let objectiveReasoning = '';
+    const reasonMatch = rawText.match(/(?:客觀推論|客觀推導|摘要|結論)[：:\s]*([^\n]+)/);
+    if (reasonMatch && reasonMatch[1].trim()) {
+      objectiveReasoning = reasonMatch[1].trim();
+    } else {
+      objectiveReasoning = `由 Google Drive 匯入之「${titleMatch?.trim() || '客觀分析筆記'}」，已完成結構化屬性對齊。`;
+    }
+
+    return {
+      date: new Date().toISOString().split('T')[0],
+      ticker: tickerMatch,
+      title: titleMatch ? titleMatch.trim() : 'Google Drive 分析筆記',
+      rawContent: rawText,
+      sourceUrl: sourceUrl || undefined,
+      sourceType: sourceType === 'app_paste' ? 'drive_doc' : sourceType,
+      dimension,
+      direction,
+      weight,
+      hardFacts: hardFacts.length > 0 ? hardFacts : ['自雲端硬碟檔案中解析之結構化事實'],
+      extractedMetrics,
+      impliedDividendShift,
+      objectiveReasoning,
+      tags: parsedTags.length > 0 ? parsedTags : ['Drive筆記', '客觀情報'],
+      extractionMethod: 'rule_engine',
+      syncedToDrive: true,
+    };
+  }
+
   const cleanedText = rawText.replace(NOISE_WORDS_REGEX, '').trim();
 
   // 1. Detect Ticker

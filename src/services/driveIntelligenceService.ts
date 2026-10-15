@@ -11,14 +11,23 @@ function assertNotProtectedCore(fileId?: string) {
   }
 }
 
+export const DEFAULT_SHARED_FOLDER_ID = '1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq';
+export const DEFAULT_SHARED_FOLDER_URL = 'https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing';
+export const DEFAULT_SHARED_FOLDER_NAME = '共用情報資料夾 (Project_財商工程/情報與趨勢)';
+
 /**
- * List recent Docs, Sheets, Slides, and Markdown files from Google Drive (Read-only)
+ * List recent Docs, Sheets, Slides, and Markdown files from the shared Google Drive folder (Read-only)
+ * Shared folder URL: https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing
  */
-export async function listDriveResearchFiles(searchQuery: string = ''): Promise<DriveFileSummary[]> {
+export async function listDriveResearchFiles(
+  searchQuery: string = '',
+  folderId: string = DEFAULT_SHARED_FOLDER_ID
+): Promise<DriveFileSummary[]> {
   const token = await getAccessToken();
   if (!token) throw new Error('NEEDS_AUTH');
 
-  let q = "trashed = false and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.google-apps.presentation' or mimeType = 'text/markdown' or mimeType = 'text/plain')";
+  let q = `'${folderId}' in parents and trashed = false and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.google-apps.presentation' or mimeType = 'text/markdown' or mimeType = 'text/plain' or mimeType = 'text/x-markdown' or name contains '.md' or fileExtension = 'md')`;
+
   if (searchQuery.trim()) {
     const escaped = searchQuery.trim().replace(/'/g, "\\'");
     q += ` and name contains '${escaped}'`;
@@ -26,7 +35,7 @@ export async function listDriveResearchFiles(searchQuery: string = ''): Promise<
 
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
     q
-  )}&pageSize=20&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)`;
+  )}&pageSize=50&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -34,7 +43,7 @@ export async function listDriveResearchFiles(searchQuery: string = ''): Promise<
 
   if (!res.ok) {
     if (res.status === 401) throw new Error('AUTH_EXPIRED');
-    throw new Error(`讀取 Google Drive 檔案列表失敗 (${res.status})`);
+    throw new Error(`讀取 Google Drive 共用資料夾檔案失敗 (${res.status})`);
   }
 
   const data = await res.json();
@@ -132,13 +141,14 @@ export async function readDriveFileText(file: DriveFileSummary): Promise<{
     return { text, sourceType: 'drive_sheet' };
   }
 
-  // 4. Plain text / Markdown file
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+  // 4. Plain text / Markdown file (.md)
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&supportsAllDrives=true`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`讀取檔案內容失敗 (${res.status})`);
   const text = await res.text();
-  return { text, sourceType: 'drive_doc' };
+  const isMd = file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown') || file.mimeType.includes('markdown');
+  return { text, sourceType: isMd ? 'drive_md' : 'drive_doc' };
 }
 
 /**
@@ -203,37 +213,29 @@ export async function getOrCreateFolderPath(folderPath: string, token: string): 
 }
 
 /**
- * Save an IntelligenceSignal or Trend Synthesis Report as a new Markdown file in Google Drive
- * Automatically organizes into target folder (defaults to Project_財商工程/情報與趨勢)
+ * Save an IntelligenceSignal or Trend Synthesis Report as a new Markdown file in the shared Google Drive folder
+ * Shared folder URL: https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing
  */
 export async function saveIntelligenceMarkdownToDrive({
   fileName,
   markdownContent,
-  folderPath = 'Project_財商工程/情報與趨勢',
+  folderId = DEFAULT_SHARED_FOLDER_ID,
 }: {
   fileName: string;
   markdownContent: string;
-  folderPath?: string;
+  folderId?: string;
 }): Promise<{ id: string; name: string; webViewLink?: string; targetFolder?: string }> {
   assertNotProtectedCore(fileName);
 
   const token = await getAccessToken();
   if (!token) throw new Error('NEEDS_AUTH');
 
-  let parentFolderId: string | null = null;
-  if (folderPath && folderPath.trim()) {
-    parentFolderId = await getOrCreateFolderPath(folderPath.trim(), token);
-  }
-
   const metadata: any = {
     name: fileName.endsWith('.md') ? fileName : `${fileName}.md`,
     mimeType: 'text/markdown',
-    description: '由 Investment Tracker 財商工程大本營產出之客觀趨勢情報筆記',
+    description: '由 Investment Tracker 財商工程產出之客觀趨勢情報筆記',
+    parents: [folderId],
   };
-
-  if (parentFolderId) {
-    metadata.parents = [parentFolderId];
-  }
 
   const boundary = '-------314159265358979323846';
   const delimiter = `\r\n--${boundary}\r\n`;
@@ -249,7 +251,7 @@ export async function saveIntelligenceMarkdownToDrive({
     closeDelimiter;
 
   const res = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true',
     {
       method: 'POST',
       headers: {
@@ -262,11 +264,11 @@ export async function saveIntelligenceMarkdownToDrive({
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`儲存至 Google Drive 失敗 (${res.status}): ${errText}`);
+    throw new Error(`儲存至 Google Drive 共用資料夾失敗 (${res.status}): ${errText}`);
   }
 
   const result = await res.json();
-  return { ...result, targetFolder: folderPath };
+  return { ...result, targetFolder: DEFAULT_SHARED_FOLDER_NAME };
 }
 
 /**
