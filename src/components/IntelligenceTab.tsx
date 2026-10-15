@@ -4,17 +4,13 @@ import {
   Sparkles,
   Zap,
   Globe,
-  FileText,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
   Plus,
-  CloudUpload,
   Sliders,
   ShieldCheck,
-  ExternalLink,
   X,
-  Check,
   Layers,
   TrendingUp,
   TrendingDown,
@@ -30,14 +26,6 @@ import {
   extractSignalByRules,
   synthesizeObjectiveTrends,
 } from '../utils/intelligenceEngine';
-import {
-  saveIntelligenceMarkdownToDrive,
-  formatSignalAsNoteMarkdown,
-  DEFAULT_SHARED_FOLDER_ID,
-  DEFAULT_SHARED_FOLDER_URL,
-  DEFAULT_SHARED_FOLDER_NAME,
-} from '../services/driveIntelligenceService';
-import { googleSignIn, getAccessToken } from '../services/googleAuth';
 
 interface IntelligenceTabProps {
   signals: IntelligenceSignal[];
@@ -67,26 +55,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   // Filter state for signal list
   const [filterDimension, setFilterDimension] = useState<SignalDimension | 'all'>('all');
   const [filterDirection, setFilterDirection] = useState<SignalDirection | 'all'>('all');
-
-  // Explicit User Confirmation Modal for saving to Google Drive (Mandatory per Workspace guidelines)
-  const [driveConfirmModal, setDriveConfirmModal] = useState<{
-    isOpen: boolean;
-    fileName: string;
-    folderId: string;
-    folderName: string;
-    folderUrl: string;
-    markdownContent: string;
-    targetSignal?: IntelligenceSignal;
-    isSaving: boolean;
-  }>({
-    isOpen: false,
-    fileName: '',
-    folderId: DEFAULT_SHARED_FOLDER_ID,
-    folderName: DEFAULT_SHARED_FOLDER_NAME,
-    folderUrl: DEFAULT_SHARED_FOLDER_URL,
-    markdownContent: '',
-    isSaving: false,
-  });
 
   // Compute live objective trend synthesis
   const synthesis = synthesizeObjectiveTrends(signals, baseDividendPerShare);
@@ -186,8 +154,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
     }
   };
 
-  // 4. Save Draft Signal to Local State (and optionally open Drive confirmation)
-  const handleConfirmDraft = (alsoPromptDriveSave: boolean = false) => {
+  // 4. Save Draft Signal to Local State
+  const handleConfirmDraft = () => {
     if (!draftSignal) return;
     const newSignal: IntelligenceSignal = {
       ...draftSignal,
@@ -198,69 +166,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
     setRawText('');
     setSourceUrl('');
 
-    if (alsoPromptDriveSave) {
-      openDriveSaveConfirmation(newSignal);
-    } else {
-      showNotice('success', `已將「${newSignal.title}」加入情報中心並更新客觀趨勢天平！`);
-    }
-  };
-
-  // 5. Open Explicit Confirmation Modal before saving to Google Drive
-  const openDriveSaveConfirmation = (signal: IntelligenceSignal) => {
-    const safeTitle = signal.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 22);
-    const fileName = `財商情報_${signal.date}_${signal.ticker}_${safeTitle}.md`;
-    const markdownContent = formatSignalAsNoteMarkdown(signal);
-
-    setDriveConfirmModal({
-      isOpen: true,
-      fileName,
-      folderId: DEFAULT_SHARED_FOLDER_ID,
-      folderName: DEFAULT_SHARED_FOLDER_NAME,
-      folderUrl: DEFAULT_SHARED_FOLDER_URL,
-      markdownContent,
-      targetSignal: signal,
-      isSaving: false,
-    });
-  };
-
-  const executeSaveToDrive = async () => {
-    setDriveConfirmModal((prev) => ({ ...prev, isSaving: true }));
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        const authRes = await googleSignIn();
-        if (!authRes) {
-          setDriveConfirmModal((prev) => ({ ...prev, isSaving: false }));
-          return;
-        }
-      }
-
-      const savedFile = await saveIntelligenceMarkdownToDrive({
-        fileName: driveConfirmModal.fileName,
-        markdownContent: driveConfirmModal.markdownContent,
-        folderId: driveConfirmModal.folderId,
-      });
-
-      if (driveConfirmModal.targetSignal) {
-        onUpdateSignal({
-          ...driveConfirmModal.targetSignal,
-          syncedToDrive: true,
-          driveFileId: savedFile.id,
-        });
-      }
-
-      setDriveConfirmModal((prev) => ({
-        ...prev,
-        isOpen: false,
-        fileName: '',
-        markdownContent: '',
-        isSaving: false,
-      }));
-      showNotice('success', `☁️ 已成功將情報儲存至 Google Drive 共用資料夾：${savedFile.name}！`);
-    } catch (err: any) {
-      setDriveConfirmModal((prev) => ({ ...prev, isSaving: false }));
-      showNotice('error', err.message || '儲存至 Google Drive 失敗');
-    }
+    showNotice('success', `已將「${newSignal.title}」加入情報中心並更新客觀趨勢天平！`);
   };
 
   const filteredSignals = signals.filter((s) => {
@@ -671,18 +577,10 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
             <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => handleConfirmDraft(false)}
+                onClick={handleConfirmDraft}
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition cursor-pointer"
               >
                 儲存至情報中心
-              </button>
-              <button
-                type="button"
-                onClick={() => handleConfirmDraft(true)}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <CloudUpload className="w-4 h-4" />
-                <span>儲存並同步備份至 Google Drive</span>
               </button>
             </div>
           </div>
@@ -822,96 +720,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           ))}
         </div>
       </div>
-
-      {/* Explicit User Confirmation Modal for Google Drive Save (Mandatory per Workspace guidelines) */}
-      {driveConfirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center space-x-2.5">
-                <CloudUpload className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-base font-bold text-slate-100">確認儲存情報檔案至 Google Drive</h3>
-              </div>
-              <button
-                onClick={() =>
-                  setDriveConfirmModal((prev) => ({ ...prev, isOpen: false }))
-                }
-                className="text-slate-400 hover:text-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-300">
-              <p>
-                系統將在您的 Google Drive 共用資料夾建立以下獨立的新 Markdown 情報筆記檔案（不會觸碰或修改唯讀的{' '}
-                <code className="text-emerald-400">Investment_Tracker_Core</code>）：
-              </p>
-
-              <div className="space-y-1">
-                <label className="text-slate-400 block">📁 儲存目標共用資料夾：</label>
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1 font-mono">
-                  <div className="text-emerald-300 font-bold flex items-center justify-between">
-                    <span>{driveConfirmModal.folderName}</span>
-                    <a
-                      href={driveConfirmModal.folderUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-teal-400 hover:text-teal-300 underline text-[10px] flex items-center gap-1"
-                    >
-                      <span>開啟連結</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    ID: {driveConfirmModal.folderId}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-slate-400 block">檔案名稱：</label>
-                <input
-                  type="text"
-                  value={driveConfirmModal.fileName}
-                  onChange={(e) =>
-                    setDriveConfirmModal({ ...driveConfirmModal, fileName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-emerald-300"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-slate-400 block">儲存內容預覽（YAML Frontmatter + 硬數據）：</label>
-                <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                  {driveConfirmModal.markdownContent}
-                </pre>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() =>
-                  setDriveConfirmModal((prev) => ({ ...prev, isOpen: false }))
-                }
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={executeSaveToDrive}
-                disabled={driveConfirmModal.isSaving}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Check className="w-4 h-4" />
-                <span>{driveConfirmModal.isSaving ? '寫入雲端硬碟中...' : '確認建立並存入 Google Drive'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
