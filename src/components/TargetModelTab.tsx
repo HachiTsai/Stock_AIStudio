@@ -55,7 +55,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
   );
   const [customPrice, setCustomPrice] = useState<number>(actualPrice);
   const [lumpSumTwd, setLumpSumTwd] = useState<number>(0);
-  const [lumpSumYear, setLumpSumYear] = useState<number>(1);
+  const [lumpSumMonth, setLumpSumMonth] = useState<number>(0);
   const [reinvestRatioPct, setReinvestRatioPct] = useState<number>(100);
   const [taxRatePct, setTaxRatePct] = useState<number>(0.72); // 0.72% observed effective NHI deduction
   const [divGrowthRatePct, setDivGrowthRatePct] = useState<number>(0);
@@ -91,7 +91,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     currentPrice: customPrice,
     dividendPerShare: customDivPerShare,
     lumpSumTwd,
-    lumpSumYear,
+    lumpSumMonth,
     targetDividend: targetAnnualDividend,
     reinvestRatioPct,
     taxRatePct,
@@ -103,7 +103,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     currentPrice: customPrice,
     dividendPerShare: customDivPerShare,
     lumpSumTwd,
-    lumpSumYear,
+    lumpSumMonth,
     dividendGrowthRatePct: divGrowthRatePct,
     reinvestRatioPct,
     taxRatePct,
@@ -119,7 +119,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     setCustomDivPerShare(actualDivPerShare);
     setCustomPrice(actualPrice);
     setLumpSumTwd(0);
-    setLumpSumYear(1);
+    setLumpSumMonth(0);
     setReinvestRatioPct(100);
     setTaxRatePct(0.72);
     setDivGrowthRatePct(0);
@@ -364,16 +364,18 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
               </div>
               <div className="flex items-center justify-between text-xs pt-1">
                 <span className="text-slate-400">投入時點</span>
-                <select
-                  value={lumpSumYear}
-                  onChange={(e) => setLumpSumYear(Number(e.target.value))}
-                  className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-slate-200 font-mono"
-                >
-                  <option value={1}>現在（第 1 年初）</option>
-                  {Array.from({ length: 9 }, (_, i) => i + 2).map((y) => (
-                    <option key={y} value={y}>第 {y} 年初</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1.5 font-mono">
+                  <input
+                    type="number"
+                    min={0}
+                    max={119}
+                    step={1}
+                    value={lumpSumMonth}
+                    onChange={(e) => setLumpSumMonth(Math.min(119, Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                    className="w-16 px-2 py-1 bg-slate-950 border border-slate-800 rounded text-slate-200 text-right"
+                  />
+                  <span className="text-slate-400">個月後{lumpSumMonth === 0 ? '（現在）' : ''}</span>
+                </div>
               </div>
             </div>
 
@@ -505,7 +507,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            {reinvestRatioPct > 0 ? `股息 ${reinvestRatioPct}% 再投` : '無再投入'} ＋ {lumpSumTwd > 0 ? `一次性加碼 ${formatTWD(lumpSumTwd)}（第 ${lumpSumYear} 年初）` : '無額外加碼'}
+            {reinvestRatioPct > 0 ? `股息 ${reinvestRatioPct}% 再投` : '無再投入'} ＋ {lumpSumTwd > 0 ? `一次性加碼 ${formatTWD(lumpSumTwd)}（${lumpSumMonth === 0 ? '現在' : `${lumpSumMonth} 個月後`}）` : '無額外加碼'}
           </div>
         </div>
       </div>
@@ -517,7 +519,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
         currentPrice={customPrice}
         currentDivPerShare={customDivPerShare}
         lumpSumTwd={lumpSumTwd}
-        lumpSumYear={lumpSumYear}
+        lumpSumMonth={lumpSumMonth}
         reinvestRatioPct={reinvestRatioPct}
         taxRatePct={taxRatePct}
       />
@@ -611,7 +613,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
               <span>動態逐年複利飛輪增長表</span>
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              以當前設定（{lumpSumTwd > 0 ? `第 ${lumpSumYear} 年初一次性加碼 ${formatTWD(lumpSumTwd)} TWD` : '無額外加碼'} ＋ 股息 {reinvestRatioPct}% 再投入）推估之歷年複利軌跡
+              以當前設定（{lumpSumTwd > 0 ? `${lumpSumMonth === 0 ? '現在' : `${lumpSumMonth} 個月後`}一次性加碼 ${formatTWD(lumpSumTwd)} TWD` : '無額外加碼'} ＋ 股息 {reinvestRatioPct}% 再投入）推估之歷年複利軌跡
             </p>
           </div>
           <div className="flex items-center gap-2 font-mono text-xs">

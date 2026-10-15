@@ -109,7 +109,7 @@ export function simulateDividendGrowth({
   currentPrice,
   dividendPerShare,
   lumpSumTwd,
-  lumpSumYear = 1,
+  lumpSumMonth = 0,
   dividendGrowthRatePct = 0,
   priceGrowthRatePct = 0,
   reinvestRatioPct = 100,
@@ -121,8 +121,8 @@ export function simulateDividendGrowth({
   currentPrice: number;
   dividendPerShare: number;
   lumpSumTwd: number;
-  /** 一次性加碼於第幾年年初投入（1 = 現在） */
-  lumpSumYear?: number;
+  /** 一次性加碼於幾個月後投入（0 = 現在） */
+  lumpSumMonth?: number;
   dividendGrowthRatePct?: number;
   priceGrowthRatePct?: number;
   reinvestRatioPct?: number;
@@ -139,24 +139,25 @@ export function simulateDividendGrowth({
 
   for (let year = 1; year <= years; year++) {
     const startShares = shares;
-    // Shares bought at the start of the year already earn that year's dividend
-    if (year === lumpSumYear && price > 0) shares += lumpSumTwd / price;
-    const grossAnnualDividend = shares * divPerShare;
+    // One-time addition bought during this year: earns dividend only for the months remaining
+    const lumpThisYear = year === Math.floor(lumpSumMonth / 12) + 1;
+    const lumpShares = lumpThisYear && price > 0 ? lumpSumTwd / price : 0;
+    const remainingFraction = (12 - (lumpSumMonth % 12)) / 12;
+    const grossAnnualDividend = (shares + lumpShares * remainingFraction) * divPerShare;
     const netAnnualDividend = grossAnnualDividend * (1 - taxRatePct / 100);
     cumulativeDividends += netAnnualDividend;
 
-    // One-time extra addition, bought at the start of lumpSumYear at that year's price
-    const annualCapitalAddition = year === lumpSumYear ? lumpSumTwd : 0;
+    const annualCapitalAddition = lumpThisYear ? lumpSumTwd : 0;
     cumulativeInvested += annualCapitalAddition;
 
     // New shares from the one-time addition
-    const newSharesFromCash = price > 0 ? annualCapitalAddition / price : 0;
+    const newSharesFromCash = lumpShares;
 
     // New shares from reinvested dividends (based on reinvestRatioPct)
     const amountToReinvest = netAnnualDividend * (reinvestRatioPct / 100);
     const newSharesFromReinvest = price > 0 ? amountToReinvest / price : 0;
 
-    shares += newSharesFromReinvest;
+    shares += newSharesFromCash + newSharesFromReinvest;
 
     const endMarketValue = shares * price;
 
@@ -193,7 +194,7 @@ export function estimateTimeToGoal({
   currentPrice,
   dividendPerShare,
   lumpSumTwd,
-  lumpSumYear = 1,
+  lumpSumMonth = 0,
   targetDividend,
   reinvestRatioPct = 100,
   taxRatePct = 0,
@@ -202,14 +203,13 @@ export function estimateTimeToGoal({
   currentPrice: number;
   dividendPerShare: number;
   lumpSumTwd: number;
-  /** 一次性加碼於第幾年年初投入（1 = 現在） */
-  lumpSumYear?: number;
+  /** 一次性加碼於幾個月後投入（0 = 現在） */
+  lumpSumMonth?: number;
   targetDividend: number;
   reinvestRatioPct?: number;
   taxRatePct?: number;
 }): { years: number; months: number; reachable: boolean } {
   let shares = initialShares;
-  const lumpSumMonth = (lumpSumYear - 1) * 12;
   const initialAnnualNet = shares * dividendPerShare * (1 - taxRatePct / 100);
   if (initialAnnualNet >= targetDividend) {
     return { years: 0, months: 0, reachable: true };

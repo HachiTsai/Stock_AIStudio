@@ -20,7 +20,7 @@ interface Dynamic3DChartProps {
   currentPrice: number;
   currentDivPerShare: number;
   lumpSumTwd: number;
-  lumpSumYear: number;
+  lumpSumMonth: number;
   reinvestRatioPct: number;
   taxRatePct: number;
 }
@@ -31,7 +31,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({
   currentPrice,
   currentDivPerShare,
   lumpSumTwd,
-  lumpSumYear,
+  lumpSumMonth,
   reinvestRatioPct,
   taxRatePct,
 }) => {
@@ -394,9 +394,11 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({
 
       for (let y = 0; y <= 10; y++) {
         const x3d = -10 + (y / 10) * 20;
-        // One-time addition bought at the start of lumpSumYear (point y = start of year y+1)
-        if (y === lumpSumYear - 1 && currentPrice > 0) simShares += lumpSumTwd / currentPrice;
-        const grossDiv = simShares * currentDivPerShare;
+        // One-time addition during year y+1 earns dividend only for the months remaining
+        const lumpHere = y === Math.floor(lumpSumMonth / 12);
+        const lumpShares = lumpHere && currentPrice > 0 ? lumpSumTwd / currentPrice : 0;
+        const remainingFraction = (12 - (lumpSumMonth % 12)) / 12;
+        const grossDiv = (simShares + lumpShares * remainingFraction) * currentDivPerShare;
         const netDiv = grossDiv * (1 - taxRatePct / 100);
 
         // Height (Y)
@@ -422,7 +424,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({
 
         // Next year step
         const fromReinvest = currentPrice > 0 ? (netDiv * (reinvestRatioPct / 100)) / currentPrice : 0;
-        simShares += fromReinvest;
+        simShares += lumpShares + fromReinvest;
       }
 
       // Smooth Curve using CatmullRomCurve3
@@ -459,7 +461,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({
     currentPrice,
     currentDivPerShare,
     lumpSumTwd,
-    lumpSumYear,
+    lumpSumMonth,
     reinvestRatioPct,
     taxRatePct,
   ]);
