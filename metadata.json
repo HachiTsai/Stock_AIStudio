@@ -1,0 +1,8 @@
+{
+  "name": "Investment Tracker - 財商工程大本營",
+  "description": "個人財商工程基地：持股快照追蹤、股利現金流模型、年股利50萬目標缺口試算、財商思考架構筆記庫與交易紀錄管理系統。",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
