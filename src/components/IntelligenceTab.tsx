@@ -218,12 +218,37 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       let token = await getAccessToken();
       if (!token) {
         const authRes = await googleSignIn();
-        if (!authRes) return;
+        if (!authRes) {
+          setIsLoadingDriveFiles(false);
+          return;
+        }
       }
-      const files = await listDriveResearchFiles(query, DEFAULT_SHARED_FOLDER_ID);
+
+      let files: DriveFileSummary[] = [];
+      try {
+        files = await listDriveResearchFiles(query, DEFAULT_SHARED_FOLDER_ID);
+      } catch (innerErr: any) {
+        if (
+          innerErr.message === 'AUTH_EXPIRED' ||
+          innerErr.message === 'NEEDS_AUTH' ||
+          String(innerErr).includes('401')
+        ) {
+          const authRes = await googleSignIn();
+          if (authRes) {
+            files = await listDriveResearchFiles(query, DEFAULT_SHARED_FOLDER_ID);
+          } else {
+            throw innerErr;
+          }
+        } else {
+          throw innerErr;
+        }
+      }
+
       setDriveFiles(files);
       if (files.length === 0) {
-        showNotice('success', '已連線共用資料夾，目前尚無相符檔案。您可將分析筆記或報告存入此資料夾！');
+        showNotice('success', '已連線 Google Drive 共用資料夾，目前尚無檔案。您可將 .md、Doc、Sheet、Slide 檔案存入此資料夾！');
+      } else {
+        showNotice('success', `✨ 已成功獲取共用資料夾內 ${files.length} 個檔案！`);
       }
     } catch (err: any) {
       showNotice('error', err.message || '讀取 Google Drive 共用資料夾檔案失敗');
@@ -631,7 +656,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               }`}
             >
               <Database className="w-3.5 h-3.5" />
-              <span>從共用 Google Drive 讀取</span>
+              <span>從共用 Google Drive 讀取 (Doc/Sheet/Slide/md)</span>
             </button>
             <button
               onClick={() => setInputMode('local_md')}
@@ -741,59 +766,42 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           </div>
         )}
 
-        {/* Mode 3: Google Drive Shared Folder File Picker Panel */}
+        {/* Mode 3: Google Drive Shared Folder File Picker Panel (Doc / Sheet / Slide / md) */}
         {inputMode === 'drive' && (
-          <div className="space-y-4">
-            {/* Designated Shared Folder Connection Banner */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-950/90 rounded-xl border border-teal-500/30">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 shrink-0">
-                  <Database className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                    <span>已連線共用情報資料夾</span>
-                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono">
-                      專屬資料夾鎖定
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                    <span>資料夾 ID:</span>
-                    <code className="text-teal-300 font-mono">{DEFAULT_SHARED_FOLDER_ID}</code>
-                  </div>
-                </div>
+          <div className="space-y-3">
+            {/* Search and Action Bar */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
+                <input
+                  type="text"
+                  value={driveSearchQuery}
+                  onChange={(e) => setDriveSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLoadDriveFiles()}
+                  placeholder="搜尋共用資料夾檔案名稱（支援 Doc、Sheet、Slide、.md）..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                />
               </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-center">
-                <a
-                  href={DEFAULT_SHARED_FOLDER_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 border border-teal-500/30 text-xs font-medium transition flex items-center gap-1.5"
-                >
-                  <span>開啟 Drive 共用資料夾</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => handleLoadDriveFiles()}
-                  disabled={isLoadingDriveFiles}
-                  className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingDriveFiles ? '載入中...' : '重新整理'}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleLoadDriveFiles()}
+                disabled={isLoadingDriveFiles}
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
+                <span>{isLoadingDriveFiles ? '載入中...' : '重新整理'}</span>
+              </button>
             </div>
 
-            {/* Format Filter Bar (Includes dedicated .md format filter) */}
+            {/* Format Filter Bar (Doc / Sheet / Slide / md) */}
             {(() => {
               const mdCount = driveFiles.filter(
                 (f) =>
                   f.name.toLowerCase().endsWith('.md') ||
                   f.name.toLowerCase().endsWith('.markdown') ||
-                  f.mimeType.includes('markdown')
+                  f.name.toLowerCase().endsWith('.txt') ||
+                  f.mimeType.includes('markdown') ||
+                  f.mimeType.includes('plain')
               ).length;
               const docCount = driveFiles.filter((f) => f.mimeType.includes('document')).length;
               const sheetCount = driveFiles.filter((f) => f.mimeType.includes('spreadsheet')).length;
@@ -872,26 +880,15 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               );
             })()}
 
-            {/* Keyword Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
-              <input
-                type="text"
-                value={driveSearchQuery}
-                onChange={(e) => setDriveSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLoadDriveFiles()}
-                placeholder="搜尋共用資料夾內的檔案名稱關鍵字（支援 .md、Docs、Sheets、Slides）..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
             {/* File List Grid */}
             {(() => {
               const filtered = driveFiles.filter((f) => {
                 const isMd =
                   f.name.toLowerCase().endsWith('.md') ||
                   f.name.toLowerCase().endsWith('.markdown') ||
-                  f.mimeType.includes('markdown');
+                  f.name.toLowerCase().endsWith('.txt') ||
+                  f.mimeType.includes('markdown') ||
+                  f.mimeType.includes('plain');
                 const isDoc = f.mimeType.includes('document');
                 const isSheet = f.mimeType.includes('spreadsheet');
                 const isSlide = f.mimeType.includes('presentation');
@@ -910,23 +907,14 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                       <p>
                         {isLoadingDriveFiles
                           ? '正在從共用資料夾載入檔案...'
-                          : '此篩選分類下尚無檔案。您可以將 .md 筆記或報告上傳至共用資料夾，或於 APP 內點擊「儲存至 Google Drive」自動存入！'}
+                          : '此篩選分類下尚無檔案。您可將 .md、Doc、Sheet、Slide 檔案上傳至共用資料夾，或於 APP 內點擊「儲存至 Google Drive」自動存入！'}
                       </p>
                       {!isLoadingDriveFiles && (
-                        <div className="pt-2 flex justify-center gap-2">
-                          <a
-                            href={DEFAULT_SHARED_FOLDER_URL}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-medium border border-slate-700 transition"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>前往共用資料夾檢視</span>
-                          </a>
+                        <div className="pt-2 flex justify-center">
                           <button
                             type="button"
                             onClick={() => handleLoadDriveFiles()}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium transition cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium transition cursor-pointer shadow-lg shadow-teal-600/20"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                             <span>重新整理</span>
@@ -939,7 +927,9 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                       const isMd =
                         f.name.toLowerCase().endsWith('.md') ||
                         f.name.toLowerCase().endsWith('.markdown') ||
-                        f.mimeType.includes('markdown');
+                        f.name.toLowerCase().endsWith('.txt') ||
+                        f.mimeType.includes('markdown') ||
+                        f.mimeType.includes('plain');
                       const isDoc = f.mimeType.includes('document');
                       const isSheet = f.mimeType.includes('spreadsheet');
                       const isSlide = f.mimeType.includes('presentation');

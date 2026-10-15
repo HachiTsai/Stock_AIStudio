@@ -26,7 +26,10 @@ export async function listDriveResearchFiles(
   const token = await getAccessToken();
   if (!token) throw new Error('NEEDS_AUTH');
 
-  let q = `'${folderId}' in parents and trashed = false and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.google-apps.presentation' or mimeType = 'text/markdown' or mimeType = 'text/plain' or mimeType = 'text/x-markdown' or name contains '.md' or fileExtension = 'md')`;
+  // Query all non-trashed files directly in the designated shared folder
+  // Note: We do NOT use 'fileExtension' because it is not a valid parameter in Drive API v3 q strings and causes HTTP 400.
+  // By querying all non-folder items in the folder, all Docs, Sheets, Slides, .md files (even if uploaded as application/octet-stream or text/plain) are safely captured.
+  let q = `'${folderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`;
 
   if (searchQuery.trim()) {
     const escaped = searchQuery.trim().replace(/'/g, "\\'");
@@ -35,7 +38,7 @@ export async function listDriveResearchFiles(
 
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
     q
-  )}&pageSize=50&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+  )}&pageSize=100&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -43,11 +46,71 @@ export async function listDriveResearchFiles(
 
   if (!res.ok) {
     if (res.status === 401) throw new Error('AUTH_EXPIRED');
+    const errText = await res.text();
+    console.error(`Google Drive API error (${res.status}):`, errText);
     throw new Error(`讀取 Google Drive 共用資料夾檔案失敗 (${res.status})`);
   }
 
   const data = await res.json();
-  return data.files || [];
+  const directFiles: DriveFileSummary[] = data.files || [];
+
+  // Also query immediate subfolders to see if user has categorized notes in subdirectories
+  let subfolderFiles: DriveFileSummary[] = [];
+  try {
+    const sfQuery = `'${folderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'`;
+    const sfRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+        sfQuery
+      )}&pageSize=20&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (sfRes.ok) {
+      const sfData = await sfRes.json();
+      const subfolders = sfData.files || [];
+      if (subfolders.length > 0) {
+        const subfolderPromises = subfolders.map(async (sf: any) => {
+          try {
+            let childQ = `'${sf.id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`;
+            if (searchQuery.trim()) {
+              const escaped = searchQuery.trim().replace(/'/g, "\\'");
+              childQ += ` and name contains '${escaped}'`;
+            }
+            const childRes = await fetch(
+              `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+                childQ
+              )}&pageSize=50&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (childRes.ok) {
+              const childData = await childRes.json();
+              return (childData.files || []).map((f: any) => ({
+                ...f,
+                name: `${sf.name} / ${f.name}`,
+              }));
+            }
+          } catch (e) {
+            console.warn('Subfolder search error:', e);
+          }
+          return [];
+        });
+        const subResults = await Promise.all(subfolderPromises);
+        subfolderFiles = subResults.flat();
+      }
+    }
+  } catch (e) {
+    console.warn('Subfolder search error:', e);
+  }
+
+  // Combine and deduplicate
+  const seenIds = new Set<string>();
+  const combined: DriveFileSummary[] = [];
+  for (const f of [...directFiles, ...subfolderFiles]) {
+    if (!f.id || seenIds.has(f.id)) continue;
+    seenIds.add(f.id);
+    combined.push(f);
+  }
+
+  return combined;
 }
 
 /**
@@ -147,11 +210,15 @@ export async function readDriveFileText(file: DriveFileSummary): Promise<{
   });
   if (!res.ok) throw new Error(`讀取檔案內容失敗 (${res.status})`);
   const text = await res.text();
-  const isMd = file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown') || file.mimeType.includes('markdown');
+  const isMd =
+    file.name.toLowerCase().endsWith('.md') ||
+    file.name.toLowerCase().endsWith('.markdown') ||
+    file.name.toLowerCase().endsWith('.txt') ||
+    file.mimeType.includes('markdown') ||
+    file.mimeType.includes('plain');
   return { text, sourceType: isMd ? 'drive_md' : 'drive_doc' };
 }
 
-/**
 /**
  * Find or create nested folders in Google Drive by path, e.g. "Project_財商工程/情報與趨勢"
  */
