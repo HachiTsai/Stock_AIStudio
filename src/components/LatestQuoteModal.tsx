@@ -11,7 +11,6 @@ import {
   AlertCircle,
   RefreshCw,
   Sparkles,
-  Database,
   Lock
 } from 'lucide-react';
 import { Holding } from '../types/portfolio';
@@ -22,8 +21,6 @@ import {
   formatTWD, 
   formatShares 
 } from '../utils/calculations';
-import { fetchCurrentPriceFromCoreSheet } from '../services/sheetsService';
-import { googleSignIn, getAccessToken } from '../services/googleAuth';
 import { usePrivacy } from '../context/PrivacyContext';
 
 interface LatestQuoteModalProps {
@@ -51,13 +48,12 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
   const [priceInput, setPriceInput] = useState<string>(
     holding ? holding.currentPrice.toFixed(2) : '14.84'
   );
-  const [isFetchingFromSheet, setIsFetchingFromSheet] = useState(false);
   const [isFetchingMarketQuote, setIsFetchingMarketQuote] = useState(false);
   const [marketQuoteInfo, setMarketQuoteInfo] = useState<string | null>(null);
   const [sheetFetchError, setSheetFetchError] = useState<string | null>(null);
   
   // Default to today's date (2026-10-14)
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
   const [updateDate, setUpdateDate] = useState<string>(todayStr);
 
   // 1. Fetch free public market quote from Yahoo Finance / Google Finance (Zero OAuth, free for all)
@@ -76,26 +72,6 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
       setSheetFetchError(err.message || '抓取公開行情失敗');
     } finally {
       setIsFetchingMarketQuote(false);
-    }
-  };
-
-  const handleFetchFromCore = async () => {
-    setIsFetchingFromSheet(true);
-    setSheetFetchError(null);
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        const loginRes = await googleSignIn();
-        if (!loginRes) return;
-      }
-      const res = await fetchCurrentPriceFromCoreSheet(undefined, holding.ticker);
-      setPriceInput(res.currentPrice.toFixed(2));
-      setUpdateDate(res.lastUpdated);
-    } catch (err: any) {
-      console.error(err);
-      setSheetFetchError(err.message || '讀取失敗');
-    } finally {
-      setIsFetchingFromSheet(false);
     }
   };
 
@@ -225,16 +201,6 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                     <span>{isFetchingMarketQuote ? '抓取行情中...' : '免費即時行情'}</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleFetchFromCore}
-                    disabled={isFetchingFromSheet}
-                    className="flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-medium transition cursor-pointer"
-                    title="連線個人私人試算表 (Portfolio!Current_Price)"
-                  >
-                    <Database className="w-3 h-3 text-emerald-400" />
-                    <span>{isFetchingFromSheet ? '抓取中...' : 'Core 試算表'}</span>
-                  </button>
                 </div>
               </div>
 

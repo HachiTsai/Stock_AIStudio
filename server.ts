@@ -60,8 +60,10 @@ async function startServer() {
       const previousClose = meta.chartPreviousClose || meta.previousClose || price;
       const change = Number((price - previousClose).toFixed(2));
       const changePct = previousClose > 0 ? Number(((change / previousClose) * 100).toFixed(2)) : 0;
-      const dateStr = new Date().toISOString().split('T')[0];
-      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+      // 以報價實際時間（台北時區）為準，沒有時才用現在時間
+      const quoteTime = typeof meta.regularMarketTime === 'number' ? new Date(meta.regularMarketTime * 1000) : new Date();
+      const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(quoteTime);
+      const timeStr = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false }).format(quoteTime);
 
       res.json({
         ticker,
