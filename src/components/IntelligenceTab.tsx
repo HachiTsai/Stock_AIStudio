@@ -5,7 +5,6 @@ import {
   Zap,
   Globe,
   FileText,
-  Database,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
@@ -13,8 +12,6 @@ import {
   Trash2,
   CloudUpload,
   BookOpen,
-  Search,
-  RefreshCw,
   Sliders,
   ShieldCheck,
   ExternalLink,
@@ -24,16 +21,12 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Upload,
-  FileCode,
-  Link2,
 } from 'lucide-react';
 import {
   IntelligenceSignal,
   SignalDimension,
   SignalDirection,
   SignalSourceType,
-  DriveFileSummary,
   ArchNote,
 } from '../types/portfolio';
 import {
@@ -41,9 +34,6 @@ import {
   synthesizeObjectiveTrends,
 } from '../utils/intelligenceEngine';
 import {
-  listDriveResearchFiles,
-  readDriveFileText,
-  readDriveFileByUrlOrId,
   saveIntelligenceMarkdownToDrive,
   formatSignalAsNoteMarkdown,
   DEFAULT_SHARED_FOLDER_ID,
@@ -71,8 +61,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   onApplyScenarioToModel,
   onSaveToNotesLibrary,
 }) => {
-  // Input mode: 'paste' vs 'drive' vs 'local_md'
-  const [inputMode, setInputMode] = useState<'paste' | 'drive' | 'local_md'>('paste');
   const [rawText, setRawText] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [sourceType, setSourceType] = useState<SignalSourceType>('app_paste');
@@ -82,15 +70,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
 
   // Draft signal after extraction (for preview & user tweak before saving)
   const [draftSignal, setDraftSignal] = useState<Omit<IntelligenceSignal, 'id'> | null>(null);
-
-  // Google Drive file browser state (exclusively connected to designated Shared Folder)
-  const [driveFiles, setDriveFiles] = useState<DriveFileSummary[]>([]);
-  const [driveFormatFilter, setDriveFormatFilter] = useState<'all' | 'md' | 'doc' | 'sheet' | 'slide'>('all');
-  const [driveSearchQuery, setDriveSearchQuery] = useState('');
-  const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
-  const [readingFileId, setReadingFileId] = useState<string | null>(null);
-  const [singleFileUrl, setSingleFileUrl] = useState('');
-  const [isReadingSingleFile, setIsReadingSingleFile] = useState(false);
 
   // Filter state for signal list
   const [filterDimension, setFilterDimension] = useState<SignalDimension | 'all'>('all');
@@ -214,131 +193,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
     }
   };
 
-  // 3. Google Drive File Listing & Reading (Docs / Sheets / Slides / Markdown) from designated Shared Folder
-  const handleLoadDriveFiles = async (queryOverride?: string) => {
-    setIsLoadingDriveFiles(true);
-    const query = queryOverride !== undefined ? queryOverride : driveSearchQuery;
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        const authRes = await googleSignIn();
-        if (!authRes) {
-          setIsLoadingDriveFiles(false);
-          return;
-        }
-      }
-
-      let files: DriveFileSummary[] = [];
-      try {
-        files = await listDriveResearchFiles(query, DEFAULT_SHARED_FOLDER_ID);
-      } catch (innerErr: any) {
-        if (
-          innerErr.message === 'AUTH_EXPIRED' ||
-          innerErr.message === 'NEEDS_AUTH' ||
-          String(innerErr).includes('401')
-        ) {
-          const authRes = await googleSignIn();
-          if (authRes) {
-            files = await listDriveResearchFiles(query, DEFAULT_SHARED_FOLDER_ID);
-          } else {
-            throw innerErr;
-          }
-        } else {
-          throw innerErr;
-        }
-      }
-
-      setDriveFiles(files);
-      if (files.length === 0) {
-        showNotice('success', '已連線 Google Drive 共用資料夾，目前尚無檔案。您可將 .md、Doc、Sheet、Slide 檔案存入此資料夾！');
-      } else {
-        showNotice('success', `✨ 已成功獲取共用資料夾內 ${files.length} 個檔案！`);
-      }
-    } catch (err: any) {
-      showNotice('error', err.message || '讀取 Google Drive 共用資料夾檔案失敗');
-    } finally {
-      setIsLoadingDriveFiles(false);
-    }
-  };
-
-  const handleReadDriveFile = async (file: DriveFileSummary) => {
-    setReadingFileId(file.id);
-    try {
-      const { text, sourceType: detectedType } = await readDriveFileText(file);
-      setRawText(`【來源檔案：${file.name}】\n${text}`);
-      setSourceUrl(file.webViewLink || '');
-      setSourceType(detectedType);
-      
-      // Run deterministic rule extraction with enhanced Markdown/YAML/CLAUDE.md structure support
-      const extracted = extractSignalByRules(
-        text,
-        file.webViewLink || '',
-        detectedType,
-        '00882'
-      );
-      setDraftSignal(extracted);
-      showNotice('success', `✨ 已從共用資料夾載入「${file.name}」並完成結構化解析！請檢視下方預覽後點擊「確認加入情報天平」。`);
-    } catch (err: any) {
-      showNotice('error', err.message || '讀取檔案內容失敗');
-    } finally {
-      setReadingFileId(null);
-    }
-  };
-
-  // Read single file directly by Google Drive URL or File ID
-  const handleReadSingleFile = async () => {
-    if (!singleFileUrl.trim()) {
-      showNotice('error', '請先貼上 Google Drive 檔案連結或 ID！');
-      return;
-    }
-    setIsReadingSingleFile(true);
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        const authRes = await googleSignIn();
-        if (!authRes) {
-          setIsReadingSingleFile(false);
-          return;
-        }
-      }
-      const { file, text, sourceType: detectedType } = await readDriveFileByUrlOrId(singleFileUrl.trim());
-      setRawText(`【來源檔案：${file.name}】\n${text}`);
-      setSourceUrl(file.webViewLink || singleFileUrl.trim());
-      setSourceType(detectedType);
-
-      const extracted = extractSignalByRules(
-        text,
-        file.webViewLink || singleFileUrl.trim(),
-        detectedType,
-        '00882'
-      );
-      setDraftSignal(extracted);
-      showNotice('success', `✨ 已成功自連結讀取「${file.name}」並完成結構化萃取！`);
-    } catch (err: any) {
-      showNotice('error', err.message || '讀取 Google Drive 檔案失敗');
-    } finally {
-      setIsReadingSingleFile(false);
-    }
-  };
-
-  // Local .md file picker & parser
-  const handleLocalFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      setRawText(`【本機 .md 檔案：${file.name}】\n${text}`);
-      setSourceUrl('');
-      setSourceType('local_md');
-      
-      const extracted = extractSignalByRules(text, '', 'local_md', '00882');
-      setDraftSignal(extracted);
-      showNotice('success', `✨ 已成功讀取本機「${file.name}」並完成結構化解析！請檢視下方卡片後點擊「確認加入情報天平」。`);
-    } catch (err: any) {
-      showNotice('error', err.message || '讀取本機 .md 檔案失敗');
-    }
-  };
-
   // 4. Save Draft Signal to Local State (and optionally open Drive confirmation)
   const handleConfirmDraft = (alsoPromptDriveSave: boolean = false) => {
     if (!draftSignal) return;
@@ -410,8 +264,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
         isSaving: false,
       }));
       showNotice('success', `☁️ 已成功將情報儲存至 Google Drive 共用資料夾：${savedFile.name}！`);
-      // Auto refresh file list
-      handleLoadDriveFiles();
     } catch (err: any) {
       setDriveConfirmModal((prev) => ({ ...prev, isSaving: false }));
       showNotice('error', err.message || '儲存至 Google Drive 失敗');
@@ -658,459 +510,82 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
         </div>
       </div>
 
-      {/* Section 2: Dual-Mode Input & Google Drive Reader Workbench */}
+      {/* Section 2: Input & Extraction Workbench (Paste Text / URL) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-          <div>
-            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-emerald-400" />
-              <span>新增情報與數據萃取工作台（APP 快貼 ⇄ Google Drive 雙向同步）</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              支援直接貼上文字/網址，或從 Google Drive 讀取 Doc / Sheet / Slide；提供「免 AI 純規則引擎」與「AI 智慧萃取」雙模式。
-            </p>
-          </div>
-
-          {/* Input Source Switcher */}
-          <div className="flex flex-wrap p-1 rounded-xl bg-slate-950 border border-slate-800 self-start gap-1">
-            <button
-              onClick={() => setInputMode('paste')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                inputMode === 'paste'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>在 APP 貼上文字 / 網址</span>
-            </button>
-            <div className="flex items-center">
-              <button
-                onClick={() => {
-                  setInputMode('drive');
-                  if (driveFiles.length === 0) handleLoadDriveFiles();
-                }}
-                className={`px-3.5 py-1.5 rounded-l-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                  inputMode === 'drive'
-                    ? 'bg-teal-600 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5" />
-                <span>從共用 Google Drive 讀取 (Doc/Sheet/Slide/md)</span>
-              </button>
-              <a
-                href={DEFAULT_SHARED_FOLDER_URL}
-                target="_blank"
-                rel="noreferrer"
-                title="直接在 Google Drive 開啟預設共用資料夾"
-                className={`px-2 py-1.5 rounded-r-lg text-xs transition flex items-center border-l ${
-                  inputMode === 'drive'
-                    ? 'bg-teal-700 text-teal-100 hover:bg-teal-500 border-teal-500/50'
-                    : 'bg-slate-900 text-slate-400 hover:text-teal-300 border-slate-800'
-                }`}
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-            <button
-              onClick={() => setInputMode('local_md')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                inputMode === 'local_md'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <FileCode className="w-3.5 h-3.5" />
-              <span>讀取本機 .md 檔案</span>
-            </button>
-          </div>
+        <div className="pb-4 border-b border-slate-800">
+          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-emerald-400" />
+            <span>在 APP 貼上文字 / 網址萃取硬數據</span>
+          </h2>
+          <p className="text-xs text-slate-400 mt-1">
+            在此貼上任何新聞段落、法說會摘要、ETF 淨值/可分配收益數據、匯率變動或您的觀察筆記；提供「免 AI 純規則引擎」與「AI 智慧萃取」雙模，自動提煉硬數據與股利邊際影響。
+          </p>
         </div>
 
-        {/* Mode 1: Paste Text or URL */}
-        {inputMode === 'paste' && (
-          <div className="space-y-4">
-            {/* Optional URL bar */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Globe className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                <input
-                  type="url"
-                  value={sourceUrl}
-                  onChange={(e) => setSourceUrl(e.target.value)}
-                  placeholder="選填：貼上財經新聞、公告或研究報告網址 (URL)，可自動抓取內文..."
-                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleFetchUrl}
-                disabled={isFetchingUrl || !sourceUrl.trim()}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer shrink-0"
-              >
-                {isFetchingUrl ? '抓取網址中...' : '抓取網址內文'}
-              </button>
-            </div>
-
-            {/* Raw Textarea */}
-            <div>
-              <textarea
-                rows={4}
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                placeholder="在此貼上任何新聞段落、法說會摘要、ETF 淨值/可分配收益數據、匯率變動或您的觀察筆記...&#10;例如：「00882 成分股中國神華公告最新年度派息率達 75%，EPS 年增 4.5%，目前 ETF 折價 0.25%」"
-                className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500"
+        {/* Paste Text or URL Form */}
+        <div className="space-y-4">
+          {/* Optional URL bar */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Globe className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+              <input
+                type="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="選填：貼上財經新聞、公告或研究報告網址 (URL)，可自動抓取內文..."
+                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
               />
             </div>
-
-            {/* Dual-Mode Extraction Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>支援雙模解析：預設「純規則引擎」零 API 成本，長文可選用「AI 智慧萃取」</span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleRuleExtract}
-                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition cursor-pointer"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span>⚡ 純規則量化解析 (免 AI API)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleAIExtract}
-                  disabled={isExtractingAI}
-                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/40 text-xs font-semibold transition cursor-pointer"
-                >
-                  <Sparkles className={`w-4 h-4 text-teal-400 ${isExtractingAI ? 'animate-spin' : ''}`} />
-                  <span>{isExtractingAI ? 'AI 萃取中...' : '✨ AI 智慧去情緒化萃取'}</span>
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleFetchUrl}
+              disabled={isFetchingUrl || !sourceUrl.trim()}
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer shrink-0"
+            >
+              {isFetchingUrl ? '抓取網址中...' : '抓取網址內文'}
+            </button>
           </div>
-        )}
 
-        {/* Mode 2: Read Local .md File */}
-        {inputMode === 'local_md' && (
-          <div className="p-8 rounded-2xl bg-slate-950/70 border-2 border-dashed border-purple-500/40 text-center space-y-4">
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-              <FileCode className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-slate-100">選擇本機 Markdown (.md) 分析筆記</h3>
-              <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-                支援讀取電腦中的 <code className="text-purple-300 font-mono font-semibold">.md</code> 格式檔案。系統將直接在瀏覽器內進行結構化解析，自動提煉硬數據、量化指標與股利邊際影響推估！
-              </p>
-            </div>
-            <div className="flex justify-center pt-2">
-              <label className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/20 transition cursor-pointer flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                <span>點擊選擇 .md 檔案</span>
-                <input
-                  type="file"
-                  accept=".md,.markdown,text/markdown,text/plain"
-                  onChange={handleLocalFileSelect}
-                  className="hidden"
-                />
-              </label>
-            </div>
+          {/* Raw Textarea */}
+          <div>
+            <textarea
+              rows={4}
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="在此貼上任何新聞段落、法說會摘要、ETF 淨值/可分配收益數據、匯率變動或您的觀察筆記...&#10;例如：「00882 成分股中國神華公告最新年度派息率達 75%，EPS 年增 4.5%，目前 ETF 折價 0.25%」"
+              className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500"
+            />
           </div>
-        )}
 
-        {/* Mode 3: Google Drive Shared Folder File Picker Panel (Doc / Sheet / Slide / md) */}
-        {inputMode === 'drive' && (
-          <div className="space-y-4">
-            {/* Directly Linked Shared Folder Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-950/70 via-slate-950 to-slate-950 border border-teal-500/40 space-y-3 shadow-lg shadow-teal-950/30">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-teal-400" />
-                    <span className="text-xs font-bold text-slate-100">預設共用資料夾直達連結</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold border border-emerald-500/30">
-                      已設共用
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    已直接為您連結雲端共用資料夾，點擊按鈕即可一鍵在 Google Drive 開啟並檢視、上傳或建立 Doc / Sheet / Slide / .md 筆記：
-                  </p>
-                </div>
-
-                <a
-                  href={DEFAULT_SHARED_FOLDER_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-teal-600/30 shrink-0"
-                >
-                  <span>開啟預設共用資料夾</span>
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-
-              {/* Quick File URL Reader from the Shared Folder */}
-              <div className="pt-3 border-t border-slate-800/80">
-                <div className="text-[11px] text-slate-400 mb-1.5 flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-teal-400" />
-                  <span>貼上共用資料夾內任一檔案共用連結 (Doc / Sheet / Slide / md) 或檔案 ID 快速讀取：</span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <Globe className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
-                    <input
-                      type="url"
-                      value={singleFileUrl}
-                      onChange={(e) => setSingleFileUrl(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleReadSingleFile()}
-                      placeholder="貼上檔案連結，例如：https://docs.google.com/... 或 https://drive.google.com/file/d/..."
-                      className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleReadSingleFile}
-                    disabled={isReadingSingleFile || !singleFileUrl.trim()}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>{isReadingSingleFile ? '讀取解析中...' : '讀取此連結並解析'}</span>
-                  </button>
-                </div>
-              </div>
+          {/* Dual-Mode Extraction Action Buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>支援雙模解析：預設「純規則引擎」零 API 成本，長文可選用「AI 智慧萃取」</span>
             </div>
 
-            {/* Search and Action Bar */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
-                <input
-                  type="text"
-                  value={driveSearchQuery}
-                  onChange={(e) => setDriveSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLoadDriveFiles()}
-                  placeholder="搜尋共用資料夾檔案名稱（支援 Doc、Sheet、Slide、.md）..."
-                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-                />
-              </div>
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => handleLoadDriveFiles()}
-                disabled={isLoadingDriveFiles}
-                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
+                onClick={handleRuleExtract}
+                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
-                <span>{isLoadingDriveFiles ? '載入中...' : '重新整理清單'}</span>
+                <Zap className="w-4 h-4" />
+                <span>⚡ 純規則量化解析 (免 AI API)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAIExtract}
+                disabled={isExtractingAI}
+                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/40 text-xs font-semibold transition cursor-pointer"
+              >
+                <Sparkles className={`w-4 h-4 text-teal-400 ${isExtractingAI ? 'animate-spin' : ''}`} />
+                <span>{isExtractingAI ? 'AI 萃取中...' : '✨ AI 智慧去情緒化萃取'}</span>
               </button>
             </div>
-
-            {/* Format Filter Bar (Doc / Sheet / Slide / md) */}
-            {(() => {
-              const mdCount = driveFiles.filter(
-                (f) =>
-                  f.name.toLowerCase().endsWith('.md') ||
-                  f.name.toLowerCase().endsWith('.markdown') ||
-                  f.name.toLowerCase().endsWith('.txt') ||
-                  f.mimeType.includes('markdown') ||
-                  f.mimeType.includes('plain')
-              ).length;
-              const docCount = driveFiles.filter((f) => f.mimeType.includes('document')).length;
-              const sheetCount = driveFiles.filter((f) => f.mimeType.includes('spreadsheet')).length;
-              const slideCount = driveFiles.filter((f) => f.mimeType.includes('presentation')).length;
-
-              return (
-                <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-950/60 rounded-xl border border-slate-800/80">
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                    <span className="text-slate-500 text-[11px] mr-1">檔案格式：</span>
-                    <button
-                      type="button"
-                      onClick={() => setDriveFormatFilter('all')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                        driveFormatFilter === 'all'
-                          ? 'bg-slate-800 text-white font-bold border border-slate-700'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      全部 ({driveFiles.length})
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDriveFormatFilter('md')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
-                        driveFormatFilter === 'md'
-                          ? 'bg-purple-600 text-white font-bold shadow-sm'
-                          : 'text-purple-300/80 hover:text-purple-200'
-                      }`}
-                    >
-                      <FileCode className="w-3 h-3" />
-                      <span>📝 Markdown (.md) ({mdCount})</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDriveFormatFilter('doc')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                        driveFormatFilter === 'doc'
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-blue-300/80 hover:text-blue-200'
-                      }`}
-                    >
-                      📄 Google Docs ({docCount})
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDriveFormatFilter('sheet')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                        driveFormatFilter === 'sheet'
-                          ? 'bg-emerald-600 text-white font-bold shadow-sm'
-                          : 'text-emerald-300/80 hover:text-emerald-200'
-                      }`}
-                    >
-                      📊 Google Sheets ({sheetCount})
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDriveFormatFilter('slide')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                        driveFormatFilter === 'slide'
-                          ? 'bg-amber-600 text-white font-bold shadow-sm'
-                          : 'text-amber-300/80 hover:text-amber-200'
-                      }`}
-                    >
-                      📑 Google Slides ({slideCount})
-                    </button>
-                  </div>
-
-                  <span className="text-[11px] font-mono text-slate-500">
-                    共用資料夾檔案清單
-                  </span>
-                </div>
-              );
-            })()}
-
-            {/* File List Grid */}
-            {(() => {
-              const filtered = driveFiles.filter((f) => {
-                const isMd =
-                  f.name.toLowerCase().endsWith('.md') ||
-                  f.name.toLowerCase().endsWith('.markdown') ||
-                  f.name.toLowerCase().endsWith('.txt') ||
-                  f.mimeType.includes('markdown') ||
-                  f.mimeType.includes('plain');
-                const isDoc = f.mimeType.includes('document');
-                const isSheet = f.mimeType.includes('spreadsheet');
-                const isSlide = f.mimeType.includes('presentation');
-
-                if (driveFormatFilter === 'md') return isMd;
-                if (driveFormatFilter === 'doc') return isDoc;
-                if (driveFormatFilter === 'sheet') return isSheet;
-                if (driveFormatFilter === 'slide') return isSlide;
-                return true;
-              });
-
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
-                  {filtered.length === 0 ? (
-                    <div className="col-span-2 py-8 px-4 text-center text-xs text-slate-400 bg-slate-950/50 rounded-xl border border-slate-800 space-y-2">
-                      <p>
-                        {isLoadingDriveFiles
-                          ? '正在從共用資料夾載入檔案...'
-                          : '此篩選分類下尚無檔案。您可將 .md、Doc、Sheet、Slide 檔案上傳至共用資料夾，或於 APP 內點擊「儲存至 Google Drive」自動存入！'}
-                      </p>
-                      {!isLoadingDriveFiles && (
-                        <div className="pt-2 flex flex-wrap justify-center gap-2">
-                          <a
-                            href={DEFAULT_SHARED_FOLDER_URL}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition cursor-pointer shadow-lg shadow-teal-600/20"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>直接開啟共用資料夾</span>
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => handleLoadDriveFiles()}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            <span>重試清單同步</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    filtered.map((f) => {
-                      const isMd =
-                        f.name.toLowerCase().endsWith('.md') ||
-                        f.name.toLowerCase().endsWith('.markdown') ||
-                        f.name.toLowerCase().endsWith('.txt') ||
-                        f.mimeType.includes('markdown') ||
-                        f.mimeType.includes('plain');
-                      const isDoc = f.mimeType.includes('document');
-                      const isSheet = f.mimeType.includes('spreadsheet');
-                      const isSlide = f.mimeType.includes('presentation');
-
-                      return (
-                        <div
-                          key={f.id}
-                          className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 flex items-center justify-between gap-3 transition"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              {isMd ? (
-                                <span className="px-1.5 py-0.5 rounded bg-purple-900/60 text-purple-300 border border-purple-700/60 font-mono text-[10px] font-bold">
-                                  📝 Markdown (.md)
-                                </span>
-                              ) : isDoc ? (
-                                <span className="px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-700/40 font-mono text-[10px]">
-                                  📄 Google Doc
-                                </span>
-                              ) : isSheet ? (
-                                <span className="px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/40 font-mono text-[10px]">
-                                  📊 Google Sheet
-                                </span>
-                              ) : isSlide ? (
-                                <span className="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/40 font-mono text-[10px]">
-                                  📑 Google Slides
-                                </span>
-                              ) : (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">
-                                  檔案
-                                </span>
-                              )}
-                              <span className="text-xs font-bold text-slate-200 truncate">{f.name}</span>
-                            </div>
-                            {f.modifiedTime && (
-                              <div className="text-[10px] text-slate-500 mt-1 font-mono">
-                                更新時間：{f.modifiedTime.split('T')[0]}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleReadDriveFile(f)}
-                            disabled={readingFileId === f.id}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-medium shrink-0 transition cursor-pointer flex items-center gap-1"
-                          >
-                            <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>{readingFileId === f.id ? '讀取解析中...' : '讀取並解析'}</span>
-                          </button>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              );
-            })()}
           </div>
-        )}
+        </div>
 
         {/* Draft Preview & Customization Box (Appears after extraction) */}
         {draftSignal && (
