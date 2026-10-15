@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { OverviewTab } from './components/OverviewTab';
 import { TargetModelTab } from './components/TargetModelTab';
+import { IntelligenceTab } from './components/IntelligenceTab';
 import { PortfolioTab } from './components/PortfolioTab';
 import { DividendsTab } from './components/DividendsTab';
 import { TransactionsTab } from './components/TransactionsTab';
@@ -14,8 +15,9 @@ import {
   INITIAL_SNAPSHOTS, 
   INITIAL_ARCH_NOTE 
 } from './data/initialData';
-import { Holding, DividendRecord, Transaction, PortfolioSnapshot, ArchNote } from './types/portfolio';
-import { calculateGoalStats, calculateRealCostPerShare } from './utils/calculations';
+import { INITIAL_INTELLIGENCE_SIGNALS } from './utils/intelligenceEngine';
+import { Holding, DividendRecord, Transaction, PortfolioSnapshot, ArchNote, IntelligenceSignal } from './types/portfolio';
+import { calculateGoalStats } from './utils/calculations';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -50,6 +52,18 @@ export const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [INITIAL_ARCH_NOTE];
   });
 
+  // Intelligence Signals state
+  const [signals, setSignals] = useState<IntelligenceSignal[]>(() => {
+    const saved = localStorage.getItem('inv_intelligence_signals');
+    return saved ? JSON.parse(saved) : INITIAL_INTELLIGENCE_SIGNALS;
+  });
+
+  // External scenario bridged from Intelligence Hub to 3D Target Model
+  const [externalScenario, setExternalScenario] = useState<{
+    dividendPerShare: number;
+    label: string;
+  } | null>(null);
+
   // Modals state
   const [isSnapshotExportOpen, setIsSnapshotExportOpen] = useState(false);
 
@@ -74,6 +88,10 @@ export const App: React.FC = () => {
     localStorage.setItem('inv_notes', JSON.stringify(notes));
   }, [notes]);
 
+  useEffect(() => {
+    localStorage.setItem('inv_intelligence_signals', JSON.stringify(signals));
+  }, [signals]);
+
   const mainHolding = holdings[0] || INITIAL_HOLDINGS[0];
   const goalStats = calculateGoalStats(holdings);
 
@@ -84,7 +102,6 @@ export const App: React.FC = () => {
 
   const handleAddDividend = (record: DividendRecord) => {
     setDividends([record, ...dividends]);
-    // Also if reinvested shares > 0, update holding shares
     if (record.reinvestedShares > 0) {
       setHoldings(
         holdings.map((h) => {
@@ -98,7 +115,6 @@ export const App: React.FC = () => {
           return h;
         })
       );
-      // Also add transaction
       const newTx: Transaction = {
         id: `tx-reinvest-${Date.now()}`,
         ticker: record.ticker,
@@ -152,7 +168,24 @@ export const App: React.FC = () => {
   };
 
   const handleAddNote = (newNote: ArchNote) => {
-    setNotes([...notes, newNote]);
+    setNotes([newNote, ...notes]);
+  };
+
+  const handleAddSignal = (newSignal: IntelligenceSignal) => {
+    setSignals([newSignal, ...signals]);
+  };
+
+  const handleUpdateSignal = (updated: IntelligenceSignal) => {
+    setSignals(signals.map((s) => (s.id === updated.id ? updated : s)));
+  };
+
+  const handleDeleteSignal = (id: string) => {
+    setSignals(signals.filter((s) => s.id !== id));
+  };
+
+  const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
+    setExternalScenario({ dividendPerShare, label });
+    setActiveTab('target-model');
   };
 
   return (
@@ -162,6 +195,7 @@ export const App: React.FC = () => {
         setActiveTab={setActiveTab}
         targetProgressPct={goalStats.progressPct}
         projectedAnnualDividend={goalStats.projectedAnnualDividend}
+        signalsCount={signals.length}
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
@@ -180,6 +214,20 @@ export const App: React.FC = () => {
           <TargetModelTab
             holdings={holdings}
             archNote={notes[0] || INITIAL_ARCH_NOTE}
+            externalScenario={externalScenario}
+            onClearExternalScenario={() => setExternalScenario(null)}
+          />
+        )}
+
+        {activeTab === 'intelligence' && (
+          <IntelligenceTab
+            signals={signals}
+            baseDividendPerShare={mainHolding.annualDividendPerShare}
+            onAddSignal={handleAddSignal}
+            onUpdateSignal={handleUpdateSignal}
+            onDeleteSignal={handleDeleteSignal}
+            onApplyScenarioToModel={handleApplyScenarioToModel}
+            onSaveToNotesLibrary={handleAddNote}
           />
         )}
 

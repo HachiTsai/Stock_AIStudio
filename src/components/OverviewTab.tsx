@@ -25,6 +25,7 @@ import {
   formatShares 
 } from '../utils/calculations';
 import { LatestQuoteModal } from './LatestQuoteModal';
+import { GoogleDriveSyncPanel } from './GoogleDriveSyncPanel';
 
 interface OverviewTabProps {
   holdings: Holding[];
@@ -239,6 +240,24 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Google Drive / Sheets Auto-Sync Panel */}
+      {mainHolding && (
+        <GoogleDriveSyncPanel
+          holding={mainHolding}
+          onUpdatePrice={(newPrice, date) => {
+            onUpdateHolding({
+              ...mainHolding,
+              currentPrice: newPrice,
+              lastUpdated: date,
+            });
+          }}
+          onNotifyToast={(msg) => {
+            setToastMessage(msg);
+            setTimeout(() => setToastMessage(null), 5000);
+          }}
+        />
+      )}
 
       {/* Main Holdings Breakdown & Market Allocation */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

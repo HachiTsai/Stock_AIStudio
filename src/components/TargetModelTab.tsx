@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Target, 
   Calculator, 
@@ -27,9 +27,16 @@ import { Dynamic3DChart } from './Dynamic3DChart';
 interface TargetModelTabProps {
   holdings: Holding[];
   archNote: ArchNote;
+  externalScenario?: { dividendPerShare: number; label: string } | null;
+  onClearExternalScenario?: () => void;
 }
 
-export const TargetModelTab: React.FC<TargetModelTabProps> = ({ holdings, archNote }) => {
+export const TargetModelTab: React.FC<TargetModelTabProps> = ({
+  holdings,
+  archNote,
+  externalScenario,
+  onClearExternalScenario,
+}) => {
   const mainHolding = holdings[0] || null;
 
   // Actual base values from portfolio
@@ -41,13 +48,25 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({ holdings, archNo
   const [targetAnnualDividend, setTargetAnnualDividend] = useState<number>(500000);
   const [useActualShares, setUseActualShares] = useState<boolean>(true);
   const [customShares, setCustomShares] = useState<number>(actualShares);
-  const [customDivPerShare, setCustomDivPerShare] = useState<number>(actualDivPerShare);
+  const [customDivPerShare, setCustomDivPerShare] = useState<number>(
+    externalScenario ? externalScenario.dividendPerShare : actualDivPerShare
+  );
   const [customPrice, setCustomPrice] = useState<number>(actualPrice);
   const [customMonthlyCapital, setCustomMonthlyCapital] = useState<number>(30000);
   const [reinvestRatioPct, setReinvestRatioPct] = useState<number>(100);
   const [taxRatePct, setTaxRatePct] = useState<number>(0.72); // 0.72% observed effective NHI deduction
   const [divGrowthRatePct, setDivGrowthRatePct] = useState<number>(0);
   const [customYears, setCustomYears] = useState<number>(10);
+
+  useEffect(() => {
+    if (externalScenario) {
+      setCustomDivPerShare(externalScenario.dividendPerShare);
+    }
+  }, [externalScenario]);
+
+  useEffect(() => {
+    setCustomPrice(actualPrice);
+  }, [actualPrice]);
 
   // Active shares used in calculations
   const activeShares = useActualShares ? actualShares : customShares;
@@ -99,6 +118,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({ holdings, archNo
     setTaxRatePct(0.72);
     setDivGrowthRatePct(0);
     setCustomYears(10);
+    if (onClearExternalScenario) onClearExternalScenario();
   };
 
   // Target preset chips
@@ -117,6 +137,27 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({ holdings, archNo
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
+      {/* Banner if loaded from Objective Intelligence Hub */}
+      {externalScenario && (
+        <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-lg animate-fade-in">
+          <div className="flex items-center space-x-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              已從【客觀趨勢情報中心】套用參數：<strong>{externalScenario.label}</strong>（預期每股年配息已設為{' '}
+              <strong className="font-mono">{externalScenario.dividendPerShare.toFixed(2)} TWD</strong>，3D 曲面與達標年數已即時連動更新！）
+            </span>
+          </div>
+          {onClearExternalScenario && (
+            <button
+              onClick={onClearExternalScenario}
+              className="text-emerald-400 hover:text-emerald-200 ml-4 font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Top Banner & Reset */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">

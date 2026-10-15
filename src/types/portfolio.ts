@@ -104,3 +104,42 @@ export interface ArchNote {
     superseded?: string;
   }[];
 }
+
+export type SignalDimension = 'dividend_sustainability' | 'valuation_margin' | 'friction_fx';
+export type SignalDirection = 'bullish' | 'neutral' | 'bearish';
+export type SignalSourceType = 'app_paste' | 'url_fetch' | 'drive_doc' | 'drive_sheet' | 'drive_slide';
+
+export interface ExtractedMetric {
+  label: string;
+  value: string;
+}
+
+export interface IntelligenceSignal {
+  id: string;
+  date: string; // YYYY-MM-DD
+  ticker: string; // e.g. '00882'
+  title: string;
+  rawContent: string;
+  sourceUrl?: string;
+  sourceType: SignalSourceType;
+  dimension: SignalDimension;
+  direction: SignalDirection;
+  weight: number; // 1 ~ 5
+  hardFacts: string[];
+  extractedMetrics: ExtractedMetric[];
+  impliedDividendShift: number; // e.g. +0.04, 0, -0.05 TWD/share
+  objectiveReasoning: string;
+  tags: string[];
+  extractionMethod: 'rule_engine' | 'ai_assisted';
+  syncedToDrive?: boolean;
+  driveFileId?: string;
+}
+
+export interface DriveFileSummary {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime?: string;
+  webViewLink?: string;
+}
+

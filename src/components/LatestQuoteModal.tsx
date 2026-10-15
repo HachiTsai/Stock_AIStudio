@@ -10,7 +10,9 @@ import {
   Calendar,
   AlertCircle,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Database,
+  Lock
 } from 'lucide-react';
 import { Holding } from '../types/portfolio';
 import { 
@@ -20,6 +22,8 @@ import {
   formatTWD, 
   formatShares 
 } from '../utils/calculations';
+import { fetchCurrentPriceFromCoreSheet } from '../services/sheetsService';
+import { googleSignIn, getAccessToken } from '../services/googleAuth';
 
 interface LatestQuoteModalProps {
   isOpen: boolean;
@@ -45,10 +49,32 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
   const [priceInput, setPriceInput] = useState<string>(
     holding ? holding.currentPrice.toFixed(2) : '14.84'
   );
+  const [isFetchingFromSheet, setIsFetchingFromSheet] = useState(false);
+  const [sheetFetchError, setSheetFetchError] = useState<string | null>(null);
   
   // Default to today's date (2026-10-14)
   const todayStr = new Date().toISOString().split('T')[0];
   const [updateDate, setUpdateDate] = useState<string>(todayStr);
+
+  const handleFetchFromCore = async () => {
+    setIsFetchingFromSheet(true);
+    setSheetFetchError(null);
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const loginRes = await googleSignIn();
+        if (!loginRes) return;
+      }
+      const res = await fetchCurrentPriceFromCoreSheet(undefined, holding.ticker);
+      setPriceInput(res.currentPrice.toFixed(2));
+      setUpdateDate(res.lastUpdated);
+    } catch (err: any) {
+      console.error(err);
+      setSheetFetchError(err.message || '讀取失敗');
+    } finally {
+      setIsFetchingFromSheet(false);
+    }
+  };
 
   if (!isOpen || !holding) return null;
 
@@ -160,10 +186,21 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Price Input */}
             <div className="space-y-2 bg-slate-950/50 p-4 rounded-xl border border-slate-800">
-              <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                <span>最新股價 (TWD)</span>
-                <span className="text-[11px] text-slate-500">可精確至小數兩位</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-300">
+                  最新股價 (TWD)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleFetchFromCore}
+                  disabled={isFetchingFromSheet}
+                  className="flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition cursor-pointer"
+                  title="連線 Investment_Tracker_Core (Portfolio!Current_Price) 自動帶入"
+                >
+                  <Database className="w-3 h-3 text-emerald-400" />
+                  <span>{isFetchingFromSheet ? '抓取中...' : '從 Core 帶入'}</span>
+                </button>
+              </div>
 
               <div className="relative">
                 <input
@@ -176,6 +213,12 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                   placeholder="例如: 15.10"
                 />
               </div>
+
+              {sheetFetchError && (
+                <p className="text-[11px] text-rose-400 leading-tight">
+                  {sheetFetchError}
+                </p>
+              )}
 
               {/* Quick Step Buttons */}
               <div className="flex items-center gap-1.5 pt-1">
