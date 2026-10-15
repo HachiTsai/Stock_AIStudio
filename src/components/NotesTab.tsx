@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ArchNote } from '../types/portfolio';
 import { CONTROLLED_VOCABULARY } from '../data/initialData';
+import { ResearchFeedPanel } from './ResearchFeedPanel';
 import { 
   saveIntelligenceMarkdownToDrive,
   DEFAULT_SHARED_FOLDER_ID,
@@ -179,6 +180,8 @@ ${note.changelog
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
+      <ResearchFeedPanel />
+
       {/* Top Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
