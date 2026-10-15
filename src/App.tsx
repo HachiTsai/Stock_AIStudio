@@ -291,7 +291,6 @@ const AppContent: React.FC = () => {
             onAddSignal={handleAddSignal}
             onUpdateSignal={handleUpdateSignal}
             onApplyScenarioToModel={handleApplyScenarioToModel}
-            onSaveToNotesLibrary={handleAddNote}
           />
         )}
 

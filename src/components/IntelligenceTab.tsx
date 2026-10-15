@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Plus,
   CloudUpload,
-  BookOpen,
   Sliders,
   ShieldCheck,
   ExternalLink,
@@ -26,7 +25,6 @@ import {
   SignalDimension,
   SignalDirection,
   SignalSourceType,
-  ArchNote,
 } from '../types/portfolio';
 import {
   extractSignalByRules,
@@ -47,7 +45,6 @@ interface IntelligenceTabProps {
   onAddSignal: (signal: IntelligenceSignal) => void;
   onUpdateSignal: (signal: IntelligenceSignal) => void;
   onApplyScenarioToModel: (dividendPerShare: number, label: string) => void;
-  onSaveToNotesLibrary: (note: ArchNote) => void;
 }
 
 export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
@@ -56,7 +53,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   onAddSignal,
   onUpdateSignal,
   onApplyScenarioToModel,
-  onSaveToNotesLibrary,
 }) => {
   const [rawText, setRawText] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
@@ -265,42 +261,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       setDriveConfirmModal((prev) => ({ ...prev, isSaving: false }));
       showNotice('error', err.message || '儲存至 Google Drive 失敗');
     }
-  };
-
-  // Convert Signal to Architecture/Research Note in local library
-  const handleConvertSignalToNote = (signal: IntelligenceSignal) => {
-    const newNote: ArchNote = {
-      id: `note-sig-${Date.now()}`,
-      type: 'trends',
-      title: signal.title,
-      domain: '股利',
-      status: '生效',
-      version: 1,
-      created: signal.date,
-      updated: signal.date,
-      tags: signal.tags,
-      tickers: [signal.ticker],
-      sources: [signal.sourceUrl || signal.sourceType],
-      summary: `${signal.objectiveReasoning}（對每股年配息邊際影響推估：${
-        signal.impliedDividendShift >= 0 ? `+${signal.impliedDividendShift}` : signal.impliedDividendShift
-      } TWD）`,
-      rules: signal.hardFacts,
-      reasons: {
-        facts: signal.hardFacts,
-        judgments: [signal.objectiveReasoning],
-      },
-      scopeAndExceptions: ['本筆記由客觀趨勢情報中心自動結構化歸檔產生。'],
-      changelog: [
-        {
-          version: 1,
-          date: signal.date,
-          changes: '由情報中心萃取建檔',
-          reason: '累積客觀數據趨勢',
-        },
-      ],
-    };
-    onSaveToNotesLibrary(newNote);
-    showNotice('success', `📝 已將「${signal.title}」轉存至【財商架構筆記庫】！`);
   };
 
   const filteredSignals = signals.filter((s) => {
@@ -800,31 +760,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                     {sig.ticker}
                   </span>
                   <span className="font-mono text-xs text-slate-500">{sig.date}</span>
-                </div>
-
-                {/* Actions: Save to Drive / Convert to Note / Delete */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openDriveSaveConfirmation(sig)}
-                    className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                      sig.syncedToDrive
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                    }`}
-                    title="將此筆結構化情報存為 Google Drive 中的 Markdown 檔案"
-                  >
-                    <CloudUpload className="w-3.5 h-3.5" />
-                    <span>{sig.syncedToDrive ? '已存 Drive (再次備份)' : '存入 Drive'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleConvertSignalToNote(sig)}
-                    className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 text-xs font-medium transition cursor-pointer"
-                    title="轉存為符合 CLAUDE.md 格式的財商架構筆記"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>轉存筆記庫</span>
-                  </button>
                 </div>
               </div>
 
