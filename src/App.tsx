@@ -16,6 +16,7 @@ import {
   INITIAL_ARCH_NOTE 
 } from './data/initialData';
 import { fetchSignalsFeed } from './services/signalsFeedService';
+import { fetchPortfolioFeed } from './services/portfolioFeedService';
 import { Holding, DividendRecord, Transaction, PortfolioSnapshot, ArchNote, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
@@ -88,6 +89,38 @@ const AppContent: React.FC = () => {
       })
       .catch((err) => {
         if (!cancelled) setSignalsFeedError(err?.message || '讀取情報資料庫失敗');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 持股與交易明細以 Drive 的「持股資料庫」「交易明細資料庫」為準（排程依 Core 唯讀重建，免登入讀取）。
+  // 現價與更新日沿用本機即時報價；讀取失敗時維持本機資料。
+  const [portfolioFeedError, setPortfolioFeedError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const prices: Record<string, number> = {};
+    holdings.forEach((h) => {
+      prices[h.ticker] = h.currentPrice;
+    });
+    fetchPortfolioFeed(prices)
+      .then((feed) => {
+        if (cancelled) return;
+        setPortfolioFeedError(null);
+        if (feed.holdings.length > 0) {
+          setHoldings((prev) =>
+            feed.holdings.map((h) => {
+              const old = prev.find((p) => p.ticker === h.ticker);
+              return old ? { ...h, currentPrice: old.currentPrice } : h;
+            })
+          );
+        }
+        if (feed.transactions.length > 0) setTransactions(feed.transactions);
+      })
+      .catch((err) => {
+        if (!cancelled) setPortfolioFeedError(err?.message || '讀取持股資料庫失敗');
       });
     return () => {
       cancelled = true;
@@ -268,6 +301,12 @@ const AppContent: React.FC = () => {
             externalScenario={externalScenario}
             onClearExternalScenario={() => setExternalScenario(null)}
           />
+        )}
+
+        {portfolioFeedError && ['overview', 'portfolio', 'transactions'].includes(activeTab) && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {portfolioFeedError}。目前顯示的是本機資料；請確認「持股快照與交易紀錄」資料夾為公開連結後重新整理。
+          </div>
         )}
 
         {activeTab === 'intelligence' && signalsFeedError && (
