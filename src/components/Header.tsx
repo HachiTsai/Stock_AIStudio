@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendingUp, BookOpen, Layers, History, Sparkles, Scale } from 'lucide-react';
+import { Target, TrendingUp, BookOpen, Layers, History, Sparkles, Scale, Eye, EyeOff } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -7,6 +7,8 @@ interface HeaderProps {
   targetProgressPct: number;
   projectedAnnualDividend: number;
   signalsCount?: number;
+  isPrivacyMaskActive?: boolean;
+  onTogglePrivacyMask?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   targetProgressPct,
   projectedAnnualDividend,
   signalsCount = 5,
+  isPrivacyMaskActive = false,
+  onTogglePrivacyMask = () => {},
 }) => {
   const tabs = [
     { id: 'overview', label: '總覽概況', icon: TrendingUp },
@@ -48,12 +52,36 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Quick Info */}
-          <div className="flex items-center space-x-3">
+          {/* Quick Info & Privacy Mask Toggle */}
+          <div className="flex items-center space-x-4">
+            {/* Privacy Mask Toggle Button */}
+            <button
+              onClick={onTogglePrivacyMask}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                isPrivacyMaskActive
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title={isPrivacyMaskActive ? '點擊解除隱私遮罩（顯示真實財務數字）' : '點擊開啟隱私遮罩（適合展示或公開時隱藏真實個人資產）'}
+            >
+              {isPrivacyMaskActive ? (
+                <>
+                  <EyeOff className="w-4 h-4 text-amber-400" />
+                  <span>隱私遮罩：開啟中</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4 text-slate-400" />
+                  <span className="hidden sm:inline">開啟隱私保護</span>
+                </>
+              )}
+            </button>
+
             <div className="flex flex-col text-right">
               <span className="text-xs text-slate-400">目前年股利推估</span>
               <span className="text-sm font-bold text-emerald-400 font-mono">
-                {projectedAnnualDividend.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ 500,000 TWD</span>
+                {isPrivacyMaskActive ? '••••••' : projectedAnnualDividend.toLocaleString()}{' '}
+                <span className="text-xs text-slate-400 font-normal">/ 500,000 TWD</span>
               </span>
             </div>
           </div>

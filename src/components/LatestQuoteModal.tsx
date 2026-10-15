@@ -50,11 +50,32 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
     holding ? holding.currentPrice.toFixed(2) : '14.84'
   );
   const [isFetchingFromSheet, setIsFetchingFromSheet] = useState(false);
+  const [isFetchingMarketQuote, setIsFetchingMarketQuote] = useState(false);
+  const [marketQuoteInfo, setMarketQuoteInfo] = useState<string | null>(null);
   const [sheetFetchError, setSheetFetchError] = useState<string | null>(null);
   
   // Default to today's date (2026-10-14)
   const todayStr = new Date().toISOString().split('T')[0];
   const [updateDate, setUpdateDate] = useState<string>(todayStr);
+
+  // 1. Fetch free public market quote from Yahoo Finance / Google Finance (Zero OAuth, free for all)
+  const handleFetchMarketQuote = async () => {
+    setIsFetchingMarketQuote(true);
+    setSheetFetchError(null);
+    try {
+      const res = await fetch(`/api/market-quote?ticker=${encodeURIComponent(holding.ticker)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '抓取行情失敗');
+      setPriceInput(data.price.toFixed(2));
+      setUpdateDate(data.date);
+      setMarketQuoteInfo(`已取得免費即時行情：${data.price.toFixed(2)} TWD（${data.change >= 0 ? `+${data.change}` : data.change} / ${data.changePct}%）`);
+    } catch (err: any) {
+      console.error(err);
+      setSheetFetchError(err.message || '抓取公開行情失敗');
+    } finally {
+      setIsFetchingMarketQuote(false);
+    }
+  };
 
   const handleFetchFromCore = async () => {
     setIsFetchingFromSheet(true);
@@ -190,16 +211,29 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <label className="text-xs font-semibold text-slate-300">
                   最新股價 (TWD)
                 </label>
-                <button
-                  type="button"
-                  onClick={handleFetchFromCore}
-                  disabled={isFetchingFromSheet}
-                  className="flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition cursor-pointer"
-                  title="連線 Investment_Tracker_Core (Portfolio!Current_Price) 自動帶入"
-                >
-                  <Database className="w-3 h-3 text-emerald-400" />
-                  <span>{isFetchingFromSheet ? '抓取中...' : '從 Core 帶入'}</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleFetchMarketQuote}
+                    disabled={isFetchingMarketQuote}
+                    className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-[11px] font-semibold transition cursor-pointer"
+                    title="從 Yahoo / Google Finance 免費公開抓取最新報價（免登入 OAuth）"
+                  >
+                    <RefreshCw className={`w-3 h-3 text-teal-400 ${isFetchingMarketQuote ? 'animate-spin' : ''}`} />
+                    <span>{isFetchingMarketQuote ? '抓取行情中...' : '免費即時行情'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFetchFromCore}
+                    disabled={isFetchingFromSheet}
+                    className="flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-medium transition cursor-pointer"
+                    title="連線個人私人試算表 (Portfolio!Current_Price)"
+                  >
+                    <Database className="w-3 h-3 text-emerald-400" />
+                    <span>{isFetchingFromSheet ? '抓取中...' : 'Core 試算表'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="relative">
@@ -213,6 +247,12 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                   placeholder="例如: 15.10"
                 />
               </div>
+
+              {marketQuoteInfo && (
+                <p className="text-[11px] text-teal-300 font-mono leading-tight">
+                  ✓ {marketQuoteInfo}
+                </p>
+              )}
 
               {sheetFetchError && (
                 <p className="text-[11px] text-rose-400 leading-tight">

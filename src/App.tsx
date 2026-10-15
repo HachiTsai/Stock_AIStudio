@@ -67,7 +67,16 @@ export const App: React.FC = () => {
   // Modals state
   const [isSnapshotExportOpen, setIsSnapshotExportOpen] = useState(false);
 
+  // Privacy Mask state (for presenting/sharing safely)
+  const [isPrivacyMaskActive, setIsPrivacyMaskActive] = useState<boolean>(() => {
+    return localStorage.getItem('inv_privacy_mask') === 'true';
+  });
+
   // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem('inv_privacy_mask', isPrivacyMaskActive ? 'true' : 'false');
+  }, [isPrivacyMaskActive]);
+
   useEffect(() => {
     localStorage.setItem('inv_holdings', JSON.stringify(holdings));
   }, [holdings]);
@@ -196,6 +205,8 @@ export const App: React.FC = () => {
         targetProgressPct={goalStats.progressPct}
         projectedAnnualDividend={goalStats.projectedAnnualDividend}
         signalsCount={signals.length}
+        isPrivacyMaskActive={isPrivacyMaskActive}
+        onTogglePrivacyMask={() => setIsPrivacyMaskActive((prev) => !prev)}
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
