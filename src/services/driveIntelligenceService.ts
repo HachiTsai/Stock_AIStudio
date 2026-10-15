@@ -11,14 +11,26 @@ function assertNotProtectedCore(fileId?: string) {
   }
 }
 
+export const DEFAULT_SHARED_FOLDER_ID = '1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq';
+export const DEFAULT_SHARED_FOLDER_URL = 'https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing';
+export const DEFAULT_SHARED_FOLDER_NAME = '共用情報資料夾 (Project_財商工程/情報與趨勢)';
+
 /**
- * List recent Docs, Sheets, Slides, and Markdown files from Google Drive (Read-only)
+ * List recent Docs, Sheets, Slides, and Markdown files from the shared Google Drive folder (Read-only)
+ * Shared folder URL: https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing
  */
-export async function listDriveResearchFiles(searchQuery: string = ''): Promise<DriveFileSummary[]> {
+export async function listDriveResearchFiles(
+  searchQuery: string = '',
+  folderId: string = DEFAULT_SHARED_FOLDER_ID
+): Promise<DriveFileSummary[]> {
   const token = await getAccessToken();
   if (!token) throw new Error('NEEDS_AUTH');
 
-  let q = "trashed = false and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.google-apps.presentation' or mimeType = 'text/markdown' or mimeType = 'text/plain')";
+  // Query all non-trashed files directly in the designated shared folder
+  // Note: We do NOT use 'fileExtension' because it is not a valid parameter in Drive API v3 q strings and causes HTTP 400.
+  // By querying all non-folder items in the folder, all Docs, Sheets, Slides, .md files (even if uploaded as application/octet-stream or text/plain) are safely captured.
+  let q = `'${folderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`;
+
   if (searchQuery.trim()) {
     const escaped = searchQuery.trim().replace(/'/g, "\\'");
     q += ` and name contains '${escaped}'`;
@@ -26,7 +38,7 @@ export async function listDriveResearchFiles(searchQuery: string = ''): Promise<
 
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
     q
-  )}&pageSize=20&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)`;
+  )}&pageSize=100&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -34,11 +46,71 @@ export async function listDriveResearchFiles(searchQuery: string = ''): Promise<
 
   if (!res.ok) {
     if (res.status === 401) throw new Error('AUTH_EXPIRED');
-    throw new Error(`讀取 Google Drive 檔案列表失敗 (${res.status})`);
+    const errText = await res.text();
+    console.error(`Google Drive API error (${res.status}):`, errText);
+    throw new Error(`讀取 Google Drive 共用資料夾檔案失敗 (${res.status})`);
   }
 
   const data = await res.json();
-  return data.files || [];
+  const directFiles: DriveFileSummary[] = data.files || [];
+
+  // Also query immediate subfolders to see if user has categorized notes in subdirectories
+  let subfolderFiles: DriveFileSummary[] = [];
+  try {
+    const sfQuery = `'${folderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'`;
+    const sfRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+        sfQuery
+      )}&pageSize=20&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (sfRes.ok) {
+      const sfData = await sfRes.json();
+      const subfolders = sfData.files || [];
+      if (subfolders.length > 0) {
+        const subfolderPromises = subfolders.map(async (sf: any) => {
+          try {
+            let childQ = `'${sf.id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`;
+            if (searchQuery.trim()) {
+              const escaped = searchQuery.trim().replace(/'/g, "\\'");
+              childQ += ` and name contains '${escaped}'`;
+            }
+            const childRes = await fetch(
+              `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+                childQ
+              )}&pageSize=50&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (childRes.ok) {
+              const childData = await childRes.json();
+              return (childData.files || []).map((f: any) => ({
+                ...f,
+                name: `${sf.name} / ${f.name}`,
+              }));
+            }
+          } catch (e) {
+            console.warn('Subfolder search error:', e);
+          }
+          return [];
+        });
+        const subResults = await Promise.all(subfolderPromises);
+        subfolderFiles = subResults.flat();
+      }
+    }
+  } catch (e) {
+    console.warn('Subfolder search error:', e);
+  }
+
+  // Combine and deduplicate
+  const seenIds = new Set<string>();
+  const combined: DriveFileSummary[] = [];
+  for (const f of [...directFiles, ...subfolderFiles]) {
+    if (!f.id || seenIds.has(f.id)) continue;
+    seenIds.add(f.id);
+    combined.push(f);
+  }
+
+  return combined;
 }
 
 /**
@@ -132,16 +204,76 @@ export async function readDriveFileText(file: DriveFileSummary): Promise<{
     return { text, sourceType: 'drive_sheet' };
   }
 
-  // 4. Plain text / Markdown file
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+  // 4. Plain text / Markdown file (.md)
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&supportsAllDrives=true`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`讀取檔案內容失敗 (${res.status})`);
   const text = await res.text();
-  return { text, sourceType: 'drive_doc' };
+  const isMd =
+    file.name.toLowerCase().endsWith('.md') ||
+    file.name.toLowerCase().endsWith('.markdown') ||
+    file.name.toLowerCase().endsWith('.txt') ||
+    file.mimeType.includes('markdown') ||
+    file.mimeType.includes('plain');
+  return { text, sourceType: isMd ? 'drive_md' : 'drive_doc' };
 }
 
 /**
+ * Extract Google Drive / Docs / Sheets / Slides file ID from link or string
+ */
+export function extractDriveFileId(urlOrId: string): string | null {
+  const trimmed = urlOrId.trim();
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(trimmed)) return trimmed;
+  const match =
+    trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) ||
+    trimmed.match(/id=([a-zA-Z0-9_-]+)/) ||
+    trimmed.match(/folders\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Read text from Google Drive by URL or ID (supporting Doc, Sheet, Slide, Markdown)
+ */
+export async function readDriveFileByUrlOrId(urlOrId: string): Promise<{
+  file: DriveFileSummary;
+  text: string;
+  sourceType: SignalSourceType;
+}> {
+  const fileId = extractDriveFileId(urlOrId);
+  if (!fileId) {
+    throw new Error('無法辨識有效的 Google Drive 檔案連結或 ID，請確認網址格式！');
+  }
+
+  const token = await getAccessToken();
+  if (!token) throw new Error('NEEDS_AUTH');
+
+  // Fetch file metadata
+  const metaRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,webViewLink&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!metaRes.ok) {
+    if (metaRes.status === 401) throw new Error('AUTH_EXPIRED');
+    if (metaRes.status === 403 || metaRes.status === 404) {
+      throw new Error(`無法存取該檔案 (${metaRes.status})。請確認該檔案已放置在共用資料夾內且具備讀取權限！`);
+    }
+    throw new Error(`讀取 Google Drive 檔案資訊失敗 (${metaRes.status})`);
+  }
+
+  const fileData = await metaRes.json();
+  const fileSummary: DriveFileSummary = {
+    id: fileData.id,
+    name: fileData.name,
+    mimeType: fileData.mimeType,
+    webViewLink: fileData.webViewLink || urlOrId,
+  };
+
+  const { text, sourceType } = await readDriveFileText(fileSummary);
+  return { file: fileSummary, text, sourceType };
+}
+
 /**
  * Find or create nested folders in Google Drive by path, e.g. "Project_財商工程/情報與趨勢"
  */
@@ -203,37 +335,29 @@ export async function getOrCreateFolderPath(folderPath: string, token: string): 
 }
 
 /**
- * Save an IntelligenceSignal or Trend Synthesis Report as a new Markdown file in Google Drive
- * Automatically organizes into target folder (defaults to Project_財商工程/情報與趨勢)
+ * Save an IntelligenceSignal or Trend Synthesis Report as a new Markdown file in the shared Google Drive folder
+ * Shared folder URL: https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing
  */
 export async function saveIntelligenceMarkdownToDrive({
   fileName,
   markdownContent,
-  folderPath = 'Project_財商工程/情報與趨勢',
+  folderId = DEFAULT_SHARED_FOLDER_ID,
 }: {
   fileName: string;
   markdownContent: string;
-  folderPath?: string;
+  folderId?: string;
 }): Promise<{ id: string; name: string; webViewLink?: string; targetFolder?: string }> {
   assertNotProtectedCore(fileName);
 
   const token = await getAccessToken();
   if (!token) throw new Error('NEEDS_AUTH');
 
-  let parentFolderId: string | null = null;
-  if (folderPath && folderPath.trim()) {
-    parentFolderId = await getOrCreateFolderPath(folderPath.trim(), token);
-  }
-
   const metadata: any = {
     name: fileName.endsWith('.md') ? fileName : `${fileName}.md`,
     mimeType: 'text/markdown',
-    description: '由 Investment Tracker 財商工程大本營產出之客觀趨勢情報筆記',
+    description: '由 Investment Tracker 財商工程產出之客觀趨勢情報筆記',
+    parents: [folderId],
   };
-
-  if (parentFolderId) {
-    metadata.parents = [parentFolderId];
-  }
 
   const boundary = '-------314159265358979323846';
   const delimiter = `\r\n--${boundary}\r\n`;
@@ -249,7 +373,7 @@ export async function saveIntelligenceMarkdownToDrive({
     closeDelimiter;
 
   const res = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true',
     {
       method: 'POST',
       headers: {
@@ -262,11 +386,11 @@ export async function saveIntelligenceMarkdownToDrive({
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`儲存至 Google Drive 失敗 (${res.status}): ${errText}`);
+    throw new Error(`儲存至 Google Drive 共用資料夾失敗 (${res.status}): ${errText}`);
   }
 
   const result = await res.json();
-  return { ...result, targetFolder: folderPath };
+  return { ...result, targetFolder: DEFAULT_SHARED_FOLDER_NAME };
 }
 
 /**

@@ -23,6 +23,7 @@ import {
   estimateTimeToGoal 
 } from '../utils/calculations';
 import { Dynamic3DChart } from './Dynamic3DChart';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface TargetModelTabProps {
   holdings: Holding[];
@@ -37,6 +38,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
   externalScenario,
   onClearExternalScenario,
 }) => {
+  const { isPrivacyMaskActive, maskTWD, maskPct } = usePrivacy();
   const mainHolding = holdings[0] || null;
 
   // Actual base values from portfolio
@@ -239,10 +241,10 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
                         : 'bg-slate-800 text-slate-400 border-slate-700'
                     }`}
                   >
-                    {useActualShares ? '鎖定現況 300 張' : '自訂股數'}
+                    {useActualShares ? (isPrivacyMaskActive ? '鎖定現況 ••• 張' : '鎖定現況 300 張') : '自訂股數'}
                   </button>
                   <span className="font-mono text-sm font-bold text-slate-200">
-                    {(activeShares / 1000).toFixed(0)} 張
+                    {isPrivacyMaskActive ? '••• 張' : `${(activeShares / 1000).toFixed(0)} 張`}
                   </span>
                 </div>
               </div>
@@ -423,10 +425,10 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
             </span>
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-400">
-            {formatTWD(netAnnualDividend)} <span className="text-xs text-slate-500 font-normal">TWD</span>
+            {maskTWD(netAnnualDividend)} <span className="text-xs text-slate-500 font-normal">TWD</span>
           </div>
           <div className="text-[11px] text-slate-400">
-            總額 {formatTWD(grossAnnualDividend)}（扣健保 {formatTWD(grossAnnualDividend - netAnnualDividend)}）
+            總額 {maskTWD(grossAnnualDividend)}（扣健保 {maskTWD(grossAnnualDividend - netAnnualDividend)}）
           </div>
         </div>
 
@@ -435,11 +437,11 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span>目標達成率</span>
             <span className="font-mono text-[11px] text-emerald-400 font-bold">
-              {dynamicProgressPct >= 100 ? '已達標！' : `差 ${(100 - dynamicProgressPct).toFixed(1)}%`}
+              {dynamicProgressPct >= 100 ? '已達標！' : `差 ${maskPct(100 - dynamicProgressPct, false)}`}
             </span>
           </div>
           <div className="text-2xl font-bold font-mono text-slate-100 flex items-baseline gap-1">
-            {dynamicProgressPct.toFixed(1)}%
+            {maskPct(dynamicProgressPct, false)}
             <span className="text-xs text-slate-500 font-normal">
               / {formatTWD(targetAnnualDividend)}
             </span>
@@ -461,10 +463,10 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
             </span>
           </div>
           <div className="text-2xl font-bold font-mono text-amber-400">
-            {formatTWD(dynamicGap)} <span className="text-xs text-slate-500 font-normal">TWD/年</span>
+            {maskTWD(dynamicGap)} <span className="text-xs text-slate-500 font-normal">TWD/年</span>
           </div>
           <div className="text-[11px] text-slate-400">
-            需加碼約 <strong className="text-slate-200 font-mono">{formatTWD(dynamicRequiredCapital)}</strong> TWD（約 {lotsNeeded} 張）
+            需加碼約 <strong className="text-slate-200 font-mono">{maskTWD(dynamicRequiredCapital)}</strong> TWD（約 {isPrivacyMaskActive ? '•••' : lotsNeeded} 張）
           </div>
         </div>
 
@@ -515,7 +517,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
             </p>
           </div>
           <span className="text-[11px] text-slate-500 font-mono">
-            持股基準：{(activeShares / 1000).toFixed(0)} 張 ｜ 目標：{formatTWD(targetAnnualDividend)} TWD
+            持股基準：{isPrivacyMaskActive ? '•••' : (activeShares / 1000).toFixed(0)} 張 ｜ 目標：{formatTWD(targetAnnualDividend)} TWD
           </span>
         </div>
 
@@ -528,7 +530,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
                   <th key={div} className="py-3 px-3">
                     <span className="text-amber-400 font-bold">{div.toFixed(2)} TWD</span>
                     <span className="block text-[10px] text-slate-500 font-normal">
-                      年推估 {formatTWD(activeShares * div)}
+                      年推估 {maskTWD(activeShares * div)}
                     </span>
                   </th>
                 ))}
@@ -569,7 +571,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
                           {gap === 0 ? (
                             <span className="text-emerald-400 font-bold">達標</span>
                           ) : (
-                            `缺 ${lots} 張`
+                            isPrivacyMaskActive ? '缺 ••• 張' : `缺 ${lots} 張`
                           )}
                         </div>
                       </td>
@@ -632,20 +634,20 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
                   }`}
                 >
                   <td className="py-3 px-4 font-bold text-slate-200">第 {row.year} 年</td>
-                  <td className="py-3 px-4">{(row.startShares / 1000).toFixed(1)} 張</td>
+                  <td className="py-3 px-4">{isPrivacyMaskActive ? '••• 張' : `${(row.startShares / 1000).toFixed(1)} 張`}</td>
                   <td className="py-3 px-4 text-teal-400">
-                    +{(row.newSharesFromCash / 1000).toFixed(1)} 張
+                    {isPrivacyMaskActive ? '+•• 張' : `+${(row.newSharesFromCash / 1000).toFixed(1)} 張`}
                   </td>
                   <td className="py-3 px-4 text-emerald-400">
-                    +{(row.newSharesFromReinvest / 1000).toFixed(1)} 張
+                    {isPrivacyMaskActive ? '+•• 張' : `+${(row.newSharesFromReinvest / 1000).toFixed(1)} 張`}
                   </td>
                   <td className="py-3 px-4 font-bold text-slate-100">
-                    {(row.endShares / 1000).toFixed(1)} 張 ({row.endShares.toLocaleString()} 股)
+                    {isPrivacyMaskActive ? '••• 張 (•••••• 股)' : `${(row.endShares / 1000).toFixed(1)} 張 (${row.endShares.toLocaleString()} 股)`}
                   </td>
                   <td className="py-3 px-4 font-bold text-emerald-400">
-                    {formatTWD(row.annualDividend)} TWD
+                    {maskTWD(row.annualDividend)} TWD
                   </td>
-                  <td className="py-3 px-4">{formatTWD(row.endMarketValue)} TWD</td>
+                  <td className="py-3 px-4">{maskTWD(row.endMarketValue)} TWD</td>
                   <td className="py-3 px-4">
                     {row.isGoalReached ? (
                       <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-sans text-[11px] font-bold border border-emerald-500/30">
@@ -654,7 +656,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
                       </span>
                     ) : (
                       <span className="text-slate-500 font-sans text-[11px]">
-                        進度 {row.progressPct.toFixed(1)}%
+                        進度 {maskPct(row.progressPct, false)}
                       </span>
                     )}
                   </td>

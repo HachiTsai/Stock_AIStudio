@@ -11,11 +11,20 @@ import {
   Copy, 
   Check,
   Search,
-  Plus
+  Plus,
+  CloudUpload,
+  Cloud
 } from 'lucide-react';
 import { ArchNote } from '../types/portfolio';
 import { CONTROLLED_VOCABULARY } from '../data/initialData';
 import { ResearchFeedPanel } from './ResearchFeedPanel';
+import { 
+  saveIntelligenceMarkdownToDrive,
+  DEFAULT_SHARED_FOLDER_ID,
+  DEFAULT_SHARED_FOLDER_URL,
+  DEFAULT_SHARED_FOLDER_NAME
+} from '../services/driveIntelligenceService';
+import { getAccessToken, googleSignIn } from '../services/googleAuth';
 
 interface NotesTabProps {
   notes: ArchNote[];
@@ -28,6 +37,29 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes, onUpdateNote, onAddNo
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDomain, setFilterDomain] = useState<string>('ALL');
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Explicit User Confirmation Modal for saving Note to Google Drive (Mandatory per Workspace guidelines)
+  const [driveModal, setDriveModal] = useState<{
+    isOpen: boolean;
+    fileName: string;
+    folderPath: string;
+    folderUrl: string;
+    markdownContent: string;
+    isSaving: boolean;
+  }>({
+    isOpen: false,
+    fileName: '',
+    folderPath: DEFAULT_SHARED_FOLDER_NAME,
+    folderUrl: DEFAULT_SHARED_FOLDER_URL,
+    markdownContent: '',
+    isSaving: false,
+  });
+
+  const showNotice = (type: 'success' | 'error', text: string) => {
+    setStatusMessage({ type, text });
+    setTimeout(() => setStatusMessage(null), 5500);
+  };
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId) || notes[0];
 
@@ -93,6 +125,57 @@ ${note.changelog
     navigator.clipboard.writeText(md);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleOpenDriveModal = (note: ArchNote) => {
+    const safeTitle = note.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 24);
+    const fileName = `架構筆記_${note.created}_${safeTitle}.md`;
+    const markdownContent = generateMarkdownExport(note);
+
+    setDriveModal({
+      isOpen: true,
+      fileName,
+      folderPath: DEFAULT_SHARED_FOLDER_NAME,
+      folderUrl: DEFAULT_SHARED_FOLDER_URL,
+      markdownContent,
+      isSaving: false,
+    });
+  };
+
+  const handleExecuteDriveSave = async () => {
+    setDriveModal((prev) => ({ ...prev, isSaving: true }));
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const authRes = await googleSignIn();
+        if (!authRes) {
+          setDriveModal((prev) => ({ ...prev, isSaving: false }));
+          return;
+        }
+      }
+
+      const saved = await saveIntelligenceMarkdownToDrive({
+        fileName: driveModal.fileName,
+        markdownContent: driveModal.markdownContent,
+        folderId: DEFAULT_SHARED_FOLDER_ID,
+      });
+
+      setDriveModal({
+        isOpen: false,
+        fileName: '',
+        folderPath: DEFAULT_SHARED_FOLDER_NAME,
+        folderUrl: DEFAULT_SHARED_FOLDER_URL,
+        markdownContent: '',
+        isSaving: false,
+      });
+      showNotice(
+        'success',
+        `☁️ 已成功將架構筆記存入 Google Drive 共用資料夾：${saved.name}！`
+      );
+    } catch (err: any) {
+      setDriveModal((prev) => ({ ...prev, isSaving: false }));
+      showNotice('error', err.message || '儲存筆記至 Google Drive 失敗');
+    }
   };
 
   return (
@@ -218,14 +301,25 @@ ${note.changelog
                 </div>
               </div>
 
-              <button
-                onClick={() => handleCopyMarkdown(selectedNote)}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer shrink-0"
-                title="複製符合 Markdown Linter 規範之全文"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? '已複製 MD' : '複製 Markdown'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleCopyMarkdown(selectedNote)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer shrink-0"
+                  title="複製符合 Markdown Linter 規範之全文"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? '已複製 MD' : '複製 Markdown'}</span>
+                </button>
+
+                <button
+                  onClick={() => handleOpenDriveModal(selectedNote)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-medium border border-emerald-500/40 transition cursor-pointer shrink-0"
+                  title="存入 Google Drive 預設目錄 (Project_財商工程/情報與趨勢)"
+                >
+                  <CloudUpload className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>存至 Google Drive</span>
+                </button>
+              </div>
             </div>
 
             {/* Tags & Tickers */}
@@ -356,6 +450,104 @@ ${note.changelog
           </div>
         )}
       </div>
+
+      {/* Floating Status Toast */}
+      {statusMessage && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md animate-fade-in">
+          <div
+            className={`p-4 rounded-xl shadow-2xl border flex items-center gap-3 ${
+              statusMessage.type === 'success'
+                ? 'bg-slate-900 border-emerald-500/50 text-emerald-200'
+                : 'bg-slate-900 border-rose-500/50 text-rose-200'
+            }`}
+          >
+            {statusMessage.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+            )}
+            <span className="text-xs font-medium leading-relaxed">{statusMessage.text}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Explicit User Confirmation Modal for saving to Google Drive */}
+      {driveModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center space-x-3 text-emerald-400 border-b border-slate-800 pb-3">
+              <CloudUpload className="w-6 h-6" />
+              <div>
+                <h3 className="font-bold text-slate-100 text-base">確認儲存筆記至 Google Drive 共用資料夾？</h3>
+                <p className="text-xs text-slate-400">存入後即可在【客觀趨勢情報中心】選擇 Google Drive 檔案一鍵讀取帶入</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2 font-mono">
+                <div>
+                  <span className="text-slate-500 block text-[11px]">目標雲端資料夾 (共用目錄)：</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-emerald-300 font-bold">{driveModal.folderPath}</span>
+                    <a
+                      href={driveModal.folderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-teal-400 hover:text-teal-300 underline text-[10px]"
+                    >
+                      開啟連結 ↗
+                    </a>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">檔案名稱：</span>
+                  <span className="text-slate-200">{driveModal.fileName}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">安全唯讀防護保證：</span>
+                  <span className="text-teal-400 font-medium">絕對不觸碰、不修改 Investment_Tracker_Core 核心試算表！</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-400 block mb-1">Markdown 檔案預覽 (前 200 字元)：</span>
+                <pre className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl text-[11px] text-slate-300 font-mono overflow-x-auto max-h-32">
+                  {driveModal.markdownContent.slice(0, 220)}...
+                </pre>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setDriveModal((prev) => ({ ...prev, isOpen: false }))}
+                disabled={driveModal.isSaving}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteDriveSave}
+                disabled={driveModal.isSaving}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition cursor-pointer flex items-center space-x-2"
+              >
+                {driveModal.isSaving ? (
+                  <>
+                    <Cloud className="w-4 h-4 animate-spin" />
+                    <span>正在儲存至 Google Drive...</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload className="w-4 h-4" />
+                    <span>確認儲存至 Drive 預設目錄</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

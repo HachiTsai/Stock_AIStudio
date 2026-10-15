@@ -23,6 +23,9 @@ export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
 SCOPES.forEach((scope) => provider.addScope(scope));
+provider.setCustomParameters({
+  prompt: 'consent',
+});
 
 // In-memory token caching (NOT in localStorage as mandated by security guidelines)
 let isSigningIn = false;

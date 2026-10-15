@@ -7,6 +7,7 @@ import {
   calculateMarketValue, 
   formatTWD 
 } from '../utils/calculations';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface SnapshotExportModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const SnapshotExportModal: React.FC<SnapshotExportModalProps> = ({
   snapshot,
 }) => {
   const [copied, setCopied] = useState(false);
+  const { isPrivacyMaskActive, maskTWD, maskCost } = usePrivacy();
   const mainHolding = holdings[0] || null;
 
   if (!isOpen) return null;
@@ -31,7 +33,15 @@ export const SnapshotExportModal: React.FC<SnapshotExportModalProps> = ({
   const mktYield = mainHolding ? calculateYield(mainHolding) : 6.74;
   const mktVal = mainHolding ? calculateMarketValue(mainHolding) : 4452000;
 
-  const markdownContent = `# 持股快照 ${today}
+  const sharesDisplay = isPrivacyMaskActive ? '•••,•••' : (mainHolding?.shares || 300000).toLocaleString();
+  const lotsDisplay = isPrivacyMaskActive ? '•••' : ((mainHolding?.shares || 300000) / 1000).toString();
+  const mktValDisplay = maskTWD(mktVal);
+  const realCostDisplay = maskCost(realCost);
+  const buyCostDisplay = maskTWD(mainHolding?.buyTotalCost || 4139880);
+  const feesDisplay = maskTWD(mainHolding?.totalFees || 7502);
+  const reinvestLotsDisplay = isPrivacyMaskActive ? '••' : ((mainHolding?.reinvestShares || 18000) / 1000).toString();
+
+  const markdownContent = `# 持股快照 ${today} ${isPrivacyMaskActive ? '（隱私去識別保護版）' : ''}
 
 > 來源：Google Drive \`Project_財商工程/持股快照_${today}\`（${today} 拉取）
 > 原始資料：Investment_Tracker_Core（唯讀）＋ Google Finance 股價（${today} 13:30 收盤）
@@ -40,9 +50,9 @@ export const SnapshotExportModal: React.FC<SnapshotExportModalProps> = ({
 
 | 代號 | 名稱 | 股數 | 股價 | 市值 (TWD) | 真實成本/股 | 近一年配息/股 | 殖利率 |
 | :-: | :-: | --: | --: | --: | --: | --: | --: |
-| ${mainHolding?.ticker || '00882'} | ${mainHolding?.name || '中信中國高股息'} | ${(mainHolding?.shares || 300000).toLocaleString()} | ${(mainHolding?.currentPrice || 14.84).toFixed(2)} | ${formatTWD(mktVal)} | ${realCost.toFixed(2)} | ${(mainHolding?.annualDividendPerShare || 1.00).toFixed(2)} | ${mktYield.toFixed(2)}% |
+| ${mainHolding?.ticker || '00882'} | ${mainHolding?.name || '中信中國高股息'} | ${sharesDisplay} | ${(mainHolding?.currentPrice || 14.84).toFixed(2)} | ${mktValDisplay} | ${realCostDisplay} | ${(mainHolding?.annualDividendPerShare || 1.00).toFixed(2)} | ${mktYield.toFixed(2)}% |
 
-真實成本：Buy 合計 ${formatTWD(mainHolding?.buyTotalCost || 4139880)}（不含手續費 ${formatTWD(mainHolding?.totalFees || 7502)}），Reinvest ${(mainHolding?.reinvestShares || 18000) / 1000} 張成本計 0。
+真實成本：Buy 合計 ${buyCostDisplay}（不含手續費 ${feesDisplay}），Reinvest ${reinvestLotsDisplay} 張成本計 0。
 
 ## 市場分布
 
@@ -50,14 +60,14 @@ export const SnapshotExportModal: React.FC<SnapshotExportModalProps> = ({
 
 ## 股利
 
-- 2026/1 除息 0.45 → 實收 117,900
-- 2026/7 除息 0.55 → 實收 158,344（8/11 入帳，再投入 10 張）
-- 2026 年已入帳合計 276,244
-- 以 ${(mainHolding?.shares || 300000) / 1000} 張、年配 ${(mainHolding?.annualDividendPerShare || 1.00).toFixed(2)} 推估，未來一年約 ${formatTWD((mainHolding?.shares || 300000) * (mainHolding?.annualDividendPerShare || 1.00))}
+- 2026/1 除息 0.45 → 實收 ${isPrivacyMaskActive ? '••••••' : '117,900'}
+- 2026/7 除息 0.55 → 實收 ${isPrivacyMaskActive ? '••••••' : '158,344'}（8/11 入帳，再投入 ${isPrivacyMaskActive ? '••' : '10'} 張）
+- 2026 年已入帳合計 ${isPrivacyMaskActive ? '••••••' : '276,244'}
+- 以 ${lotsDisplay} 張、年配 ${(mainHolding?.annualDividendPerShare || 1.00).toFixed(2)} 推估，未來一年約 ${maskTWD((mainHolding?.shares || 300000) * (mainHolding?.annualDividendPerShare || 1.00))}
 
 ## 與每年 50 萬目標的距離
 
-缺口約 ${formatTWD(Math.max(0, 500000 - (mainHolding?.shares || 300000) * (mainHolding?.annualDividendPerShare || 1.00)))}/年。以 ${mktYield.toFixed(2)}% 殖利率計，需再投入約 ${formatTWD(Math.round(200000 / (mktYield / 100)))} TWD（約 ${Math.round(200000 / (mktYield / 100) / ((mainHolding?.currentPrice || 14.84) * 1000))} 張 ${mainHolding?.ticker || '00882'} 或同等殖利率標的）。假設配息持平。
+缺口約 ${maskTWD(Math.max(0, 500000 - (mainHolding?.shares || 300000) * (mainHolding?.annualDividendPerShare || 1.00)))}/年。以 ${mktYield.toFixed(2)}% 殖利率計，需再投入約 ${maskTWD(Math.round(200000 / (mktYield / 100)))} TWD（約 ${isPrivacyMaskActive ? '•••' : Math.round(200000 / (mktYield / 100) / ((mainHolding?.currentPrice || 14.84) * 1000))} 張 ${mainHolding?.ticker || '00882'} 或同等殖利率標的）。假設配息持平。
 `;
 
   const handleCopy = () => {

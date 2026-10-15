@@ -18,8 +18,10 @@ import {
 import { INITIAL_INTELLIGENCE_SIGNALS } from './utils/intelligenceEngine';
 import { Holding, DividendRecord, Transaction, PortfolioSnapshot, ArchNote, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
+import { EyeOff } from 'lucide-react';
+import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('overview');
 
   // Holdings state
@@ -66,6 +68,9 @@ export const App: React.FC = () => {
 
   // Modals state
   const [isSnapshotExportOpen, setIsSnapshotExportOpen] = useState(false);
+
+  // Privacy Mask from Context
+  const { isPrivacyMaskActive, togglePrivacyMask } = usePrivacy();
 
   // Sync to localStorage
   useEffect(() => {
@@ -196,7 +201,30 @@ export const App: React.FC = () => {
         targetProgressPct={goalStats.progressPct}
         projectedAnnualDividend={goalStats.projectedAnnualDividend}
         signalsCount={signals.length}
+        isPrivacyMaskActive={isPrivacyMaskActive}
+        onTogglePrivacyMask={togglePrivacyMask}
       />
+
+      {/* Global Privacy Mask Active Reminder Banner */}
+      {isPrivacyMaskActive && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs text-amber-200 shadow-sm animate-fade-in sticky top-16 z-30 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <EyeOff className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="font-medium">
+                隱私遮罩保護中：個人總持股市值、張數、買進本金、未實現損益、逐期入帳金額與交易紀錄均已全面遮蔽（適合投影片展示、螢幕分享與公開操作）
+              </span>
+            </div>
+            <button
+              onClick={togglePrivacyMask}
+              className="ml-4 px-2.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold cursor-pointer shrink-0 transition"
+              title="解除隱私遮罩"
+            >
+              解除遮罩
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
         {activeTab === 'overview' && (
@@ -272,5 +300,13 @@ export const App: React.FC = () => {
         snapshot={snapshots[0]}
       />
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <PrivacyProvider>
+      <AppContent />
+    </PrivacyProvider>
   );
 };

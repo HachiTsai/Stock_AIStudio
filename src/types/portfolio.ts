@@ -107,7 +107,7 @@ export interface ArchNote {
 
 export type SignalDimension = 'dividend_sustainability' | 'valuation_margin' | 'friction_fx';
 export type SignalDirection = 'bullish' | 'neutral' | 'bearish';
-export type SignalSourceType = 'app_paste' | 'url_fetch' | 'drive_doc' | 'drive_sheet' | 'drive_slide';
+export type SignalSourceType = 'app_paste' | 'url_fetch' | 'drive_doc' | 'drive_sheet' | 'drive_slide' | 'drive_md' | 'local_md';
 
 export interface ExtractedMetric {
   label: string;

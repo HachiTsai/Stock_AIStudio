@@ -29,6 +29,58 @@ async function startServer() {
     });
   };
 
+  // Endpoint 0: Public Free Market Quote (Yahoo Finance / Google Finance, No OAuth/Auth required!)
+  app.get('/api/market-quote', async (req, res) => {
+    try {
+      const ticker = (req.query.ticker as string) || '00882';
+      const symbol = ticker.includes('.') ? ticker : `${ticker}.TW`;
+
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`市場行情伺服器回應異常 (${response.status})`);
+      }
+
+      const data = await response.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+
+      if (!meta || typeof meta.regularMarketPrice !== 'number') {
+        throw new Error('未取得該標的之即時報價');
+      }
+
+      const price = Number(meta.regularMarketPrice.toFixed(2));
+      const previousClose = meta.chartPreviousClose || meta.previousClose || price;
+      const change = Number((price - previousClose).toFixed(2));
+      const changePct = previousClose > 0 ? Number(((change / previousClose) * 100).toFixed(2)) : 0;
+      const dateStr = new Date().toISOString().split('T')[0];
+      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+      res.json({
+        ticker,
+        symbol,
+        price,
+        previousClose,
+        change,
+        changePct,
+        currency: meta.currency || 'TWD',
+        date: dateStr,
+        time: timeStr,
+        source: 'Yahoo Finance (公開免費市場報價)',
+      });
+    } catch (error: any) {
+      console.error('Market quote error:', error);
+      res.status(500).json({ error: error.message || '抓取公開行情失敗' });
+    }
+  });
+
   // Endpoint 1: Fetch webpage text from a URL (bypasses browser CORS for rule-based or AI extraction)
   app.post('/api/intelligence/fetch-url', async (req, res) => {
     try {

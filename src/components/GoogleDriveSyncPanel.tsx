@@ -16,6 +16,7 @@ import { User } from 'firebase/auth';
 import { googleSignIn, googleLogout, initAuth } from '../services/googleAuth';
 import { fetchCurrentPriceFromCoreSheet, DEFAULT_CORE_SPREADSHEET_ID, CoreSheetFetchResult } from '../services/sheetsService';
 import { Holding } from '../types/portfolio';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface GoogleDriveSyncPanelProps {
   holding: Holding;
@@ -28,6 +29,7 @@ export const GoogleDriveSyncPanel: React.FC<GoogleDriveSyncPanelProps> = ({
   onUpdatePrice,
   onNotifyToast,
 }) => {
+  const { isPrivacyMaskActive, maskEmail } = usePrivacy();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -176,8 +178,8 @@ export const GoogleDriveSyncPanel: React.FC<GoogleDriveSyncPanelProps> = ({
                   {user.email?.charAt(0).toUpperCase()}
                 </div>
               )}
-              <span className="text-slate-300 font-medium max-w-[120px] truncate" title={user.email || ''}>
-                {user.displayName || user.email}
+              <span className="text-slate-300 font-medium max-w-[120px] truncate" title={isPrivacyMaskActive ? '••••••' : (user.email || '')}>
+                {isPrivacyMaskActive ? maskEmail(user.email) : (user.displayName || user.email)}
               </span>
               <button
                 onClick={handleLogout}

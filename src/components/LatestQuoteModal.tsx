@@ -24,6 +24,7 @@ import {
 } from '../utils/calculations';
 import { fetchCurrentPriceFromCoreSheet } from '../services/sheetsService';
 import { googleSignIn, getAccessToken } from '../services/googleAuth';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface LatestQuoteModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
   onUpdateHolding,
   onSuccessToast,
 }) => {
+  const { isPrivacyMaskActive, maskTWD, maskShares, maskCost, maskPct } = usePrivacy();
   const mainHolding = holdings[0] || null;
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>(mainHolding?.id || '');
   
@@ -50,11 +52,32 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
     holding ? holding.currentPrice.toFixed(2) : '14.84'
   );
   const [isFetchingFromSheet, setIsFetchingFromSheet] = useState(false);
+  const [isFetchingMarketQuote, setIsFetchingMarketQuote] = useState(false);
+  const [marketQuoteInfo, setMarketQuoteInfo] = useState<string | null>(null);
   const [sheetFetchError, setSheetFetchError] = useState<string | null>(null);
   
   // Default to today's date (2026-10-14)
   const todayStr = new Date().toISOString().split('T')[0];
   const [updateDate, setUpdateDate] = useState<string>(todayStr);
+
+  // 1. Fetch free public market quote from Yahoo Finance / Google Finance (Zero OAuth, free for all)
+  const handleFetchMarketQuote = async () => {
+    setIsFetchingMarketQuote(true);
+    setSheetFetchError(null);
+    try {
+      const res = await fetch(`/api/market-quote?ticker=${encodeURIComponent(holding.ticker)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '抓取行情失敗');
+      setPriceInput(data.price.toFixed(2));
+      setUpdateDate(data.date);
+      setMarketQuoteInfo(`已取得免費即時行情：${data.price.toFixed(2)} TWD（${data.change >= 0 ? `+${data.change}` : data.change} / ${data.changePct}%）`);
+    } catch (err: any) {
+      console.error(err);
+      setSheetFetchError(err.message || '抓取公開行情失敗');
+    } finally {
+      setIsFetchingMarketQuote(false);
+    }
+  };
 
   const handleFetchFromCore = async () => {
     setIsFetchingFromSheet(true);
@@ -169,7 +192,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
               <div>
                 <div className="font-bold text-slate-100 text-sm">{holding.name}</div>
                 <div className="text-xs text-slate-400">
-                  持股數：{formatShares(holding.shares)} ｜ 現有紀錄：{holding.lastUpdated}
+                  持股數：{maskShares(holding.shares)} ｜ 現有紀錄：{holding.lastUpdated}
                 </div>
               </div>
             </div>
@@ -190,16 +213,29 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <label className="text-xs font-semibold text-slate-300">
                   最新股價 (TWD)
                 </label>
-                <button
-                  type="button"
-                  onClick={handleFetchFromCore}
-                  disabled={isFetchingFromSheet}
-                  className="flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition cursor-pointer"
-                  title="連線 Investment_Tracker_Core (Portfolio!Current_Price) 自動帶入"
-                >
-                  <Database className="w-3 h-3 text-emerald-400" />
-                  <span>{isFetchingFromSheet ? '抓取中...' : '從 Core 帶入'}</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleFetchMarketQuote}
+                    disabled={isFetchingMarketQuote}
+                    className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-[11px] font-semibold transition cursor-pointer"
+                    title="從 Yahoo / Google Finance 免費公開抓取最新報價（免登入 OAuth）"
+                  >
+                    <RefreshCw className={`w-3 h-3 text-teal-400 ${isFetchingMarketQuote ? 'animate-spin' : ''}`} />
+                    <span>{isFetchingMarketQuote ? '抓取行情中...' : '免費即時行情'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFetchFromCore}
+                    disabled={isFetchingFromSheet}
+                    className="flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-medium transition cursor-pointer"
+                    title="連線個人私人試算表 (Portfolio!Current_Price)"
+                  >
+                    <Database className="w-3 h-3 text-emerald-400" />
+                    <span>{isFetchingFromSheet ? '抓取中...' : 'Core 試算表'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="relative">
@@ -213,6 +249,12 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                   placeholder="例如: 15.10"
                 />
               </div>
+
+              {marketQuoteInfo && (
+                <p className="text-[11px] text-teal-300 font-mono leading-tight">
+                  ✓ {marketQuoteInfo}
+                </p>
+              )}
 
               {sheetFetchError && (
                 <p className="text-[11px] text-rose-400 leading-tight">
@@ -277,16 +319,16 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <span className="text-slate-400 block">持股市值 (股數 × 股價)</span>
                 <div className="flex items-baseline justify-between font-mono">
                   <span className="text-slate-500 line-through text-[11px]">
-                    {formatTWD(oldMarketValue)} TWD
+                    {maskTWD(oldMarketValue)} TWD
                   </span>
                   <span className="text-base font-bold text-slate-100">
-                    {formatTWD(newMarketValue)} TWD
+                    {maskTWD(newMarketValue)} TWD
                   </span>
                 </div>
                 <div className="text-[11px] font-mono flex justify-between">
                   <span className="text-slate-500">市值變動：</span>
                   <span className={marketValueDiff >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {marketValueDiff >= 0 ? `+${formatTWD(marketValueDiff)}` : formatTWD(marketValueDiff)} TWD
+                    {marketValueDiff >= 0 ? `+${maskTWD(marketValueDiff)}` : maskTWD(marketValueDiff)} TWD
                   </span>
                 </div>
               </div>
@@ -296,16 +338,16 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <span className="text-slate-400 block">未實現資本損益 (市值 − 純買進本金)</span>
                 <div className="flex items-baseline justify-between font-mono">
                   <span className="text-slate-500 line-through text-[11px]">
-                    +{formatTWD(oldPnL)} ({oldPnLPct.toFixed(2)}%)
+                    +{maskTWD(oldPnL)} ({maskPct(oldPnLPct)})
                   </span>
                   <span className="text-base font-bold text-emerald-400">
-                    +{formatTWD(newPnL)} TWD
+                    +{maskTWD(newPnL)} TWD
                   </span>
                 </div>
                 <div className="text-[11px] font-mono flex justify-between">
                   <span className="text-slate-500">報酬率：</span>
                   <span className="text-emerald-400 font-semibold">
-                    +{newPnLPct.toFixed(2)}%
+                    {maskPct(newPnLPct)}
                   </span>
                 </div>
               </div>
@@ -334,16 +376,16 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <span className="text-slate-400 block">50 萬目標需追加本金 (缺口 20 萬 ÷ 殖利率)</span>
                 <div className="flex items-baseline justify-between font-mono">
                   <span className="text-slate-500 line-through text-[11px]">
-                    ≈ {formatTWD(oldReqCapital)} TWD
+                    ≈ {maskTWD(oldReqCapital)} TWD
                   </span>
                   <span className="text-base font-bold text-amber-300">
-                    ≈ {formatTWD(newReqCapital)} TWD
+                    ≈ {maskTWD(newReqCapital)} TWD
                   </span>
                 </div>
                 <div className="text-[11px] font-mono flex justify-between">
                   <span className="text-slate-500">需加碼張數：</span>
                   <span className="text-slate-200 font-bold">
-                    約 {newLotsNeeded} 張 00882
+                    約 {isPrivacyMaskActive ? '•••' : newLotsNeeded} 張 00882
                   </span>
                 </div>
               </div>
@@ -354,7 +396,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
           <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800 text-xs text-slate-400 flex items-start gap-2">
             <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span>
-              <strong>計算口徑提示：</strong> 真實每股成本維持 <strong>{realCostPerShare.toFixed(2)} TWD</strong>（純現金買進本金 ÷ 總持股數，不隨市價浮動）。更新報價將自動刷新總覽、股利模型與 3D 曲線。
+              <strong>計算口徑提示：</strong> 真實每股成本維持 <strong>{maskCost(realCostPerShare)} TWD</strong>（純現金買進本金 ÷ 總持股數，不隨市價浮動）。更新報價將自動刷新總覽、股利模型與 3D 曲線。
             </span>
           </div>
 

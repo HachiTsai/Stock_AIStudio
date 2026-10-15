@@ -26,6 +26,7 @@ import {
 } from '../utils/calculations';
 import { LatestQuoteModal } from './LatestQuoteModal';
 import { GoogleDriveSyncPanel } from './GoogleDriveSyncPanel';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface OverviewTabProps {
   holdings: Holding[];
@@ -46,6 +47,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 }) => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { isPrivacyMaskActive, maskTWD, maskShares, maskRawShares, maskCost, maskPct } = usePrivacy();
 
   const goalStats = calculateGoalStats(holdings);
   const mainHolding = holdings[0] || null;
@@ -93,8 +96,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </h1>
             <p className="text-sm text-slate-400 leading-relaxed">
               以高股息 ETF 為主軸，股息 100% 再投入（Reinvest）啟動複利飛輪。當前推估年股利已達{' '}
-              <strong className="text-slate-200">{formatTWD(goalStats.projectedAnnualDividend)} TWD</strong>
-              ，進度 <strong className="text-emerald-400">{goalStats.progressPct.toFixed(1)}%</strong>。
+              <strong className="text-slate-200">{maskTWD(goalStats.projectedAnnualDividend)} TWD</strong>
+              ，進度 <strong className="text-emerald-400">{maskPct(goalStats.progressPct, false)}</strong>。
             </p>
           </div>
 
@@ -129,9 +132,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="flex justify-between items-center text-xs font-medium">
             <span className="text-slate-400">目前達成率</span>
             <span className="font-mono font-bold text-emerald-400 text-base">
-              {goalStats.progressPct.toFixed(1)}%
+              {maskPct(goalStats.progressPct, false)}
               <span className="text-xs text-slate-400 font-normal ml-2">
-                (已推估 {formatTWD(goalStats.projectedAnnualDividend)} / 目標 {formatTWD(goalStats.target)} TWD)
+                (已推估 {maskTWD(goalStats.projectedAnnualDividend)} / 目標 {formatTWD(goalStats.target)} TWD)
               </span>
             </span>
           </div>
@@ -146,7 +149,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-1">
             <span>0% (0)</span>
             <span>25% (12.5萬)</span>
-            <span className="text-emerald-400 font-semibold">▲ 60% 目前 (30萬)</span>
+            <span className="text-emerald-400 font-semibold">
+              ▲ {isPrivacyMaskActive ? '••%' : `${goalStats.progressPct.toFixed(0)}%`} 目前 ({isPrivacyMaskActive ? '••萬' : `${(goalStats.projectedAnnualDividend / 10000).toFixed(0)}萬`})
+            </span>
             <span>75% (37.5萬)</span>
             <span>100% 目標 (50萬)</span>
           </div>
@@ -161,7 +166,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <div>
               <div className="text-xs text-slate-400">每年股利目標缺口</div>
               <div className="text-lg font-bold text-slate-100 font-mono">
-                {formatTWD(goalStats.gap)} <span className="text-xs text-slate-400 font-normal">TWD / 年</span>
+                {maskTWD(goalStats.gap)} <span className="text-xs text-slate-400 font-normal">TWD / 年</span>
               </div>
             </div>
           </div>
@@ -175,9 +180,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 以現行殖利率 {goalStats.weightedYieldPct.toFixed(2)}% 計需追加本金
               </div>
               <div className="text-lg font-bold text-emerald-400 font-mono">
-                ≈ {formatTWD(goalStats.requiredCapital)}{' '}
+                ≈ {maskTWD(goalStats.requiredCapital)}{' '}
                 <span className="text-xs text-slate-400 font-normal">
-                  TWD (約 {Math.round(goalStats.requiredCapital / ((mainHolding?.currentPrice || 14.84) * 1000))} 張)
+                  TWD (約 {isPrivacyMaskActive ? '•••' : Math.round(goalStats.requiredCapital / ((mainHolding?.currentPrice || 14.84) * 1000))} 張)
                 </span>
               </div>
             </div>
@@ -191,13 +196,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-1.5 hover:border-slate-700 transition">
           <span className="text-xs text-slate-400">總持股市值</span>
           <div className="text-xl sm:text-2xl font-bold font-mono text-slate-100">
-            {formatTWD(totalMarketValue)}
+            {maskTWD(totalMarketValue)}
             <span className="text-xs text-slate-500 ml-1">TWD</span>
           </div>
           <div className="text-xs text-slate-400 flex items-center gap-1">
             <span>持有總股數：</span>
             <span className="font-mono text-slate-300">
-              {holdings.reduce((sum, h) => sum + h.shares, 0).toLocaleString()} 股
+              {maskRawShares(holdings.reduce((sum, h) => sum + h.shares, 0))}
             </span>
           </div>
         </div>
@@ -206,11 +211,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-1.5 hover:border-slate-700 transition">
           <span className="text-xs text-slate-400">真實買進本金 (不含手續費)</span>
           <div className="text-xl sm:text-2xl font-bold font-mono text-slate-100">
-            {formatTWD(totalCost)}
+            {maskTWD(totalCost)}
             <span className="text-xs text-slate-500 ml-1">TWD</span>
           </div>
           <div className="text-xs text-slate-400">
-            再投入 18 張計為零成本稀釋
+            再投入 {isPrivacyMaskActive ? '••' : '18'} 張計為零成本稀釋
           </div>
         </div>
 
@@ -218,13 +223,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-1.5 hover:border-slate-700 transition">
           <span className="text-xs text-slate-400">未實現資本損益</span>
           <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400 flex items-baseline gap-1">
-            +{formatTWD(totalPnL)}
+            +{maskTWD(totalPnL)}
             <span className="text-xs font-semibold text-emerald-500">
-              (+{totalPnLPct.toFixed(2)}%)
+              ({maskPct(totalPnLPct)})
             </span>
           </div>
           <div className="text-xs text-slate-400">
-            交易手續費已另列 {formatTWD(mainHolding?.totalFees || 7502)}
+            交易手續費已另列 {maskTWD(mainHolding?.totalFees || 7502)}
           </div>
         </div>
 
@@ -232,11 +237,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-1.5 hover:border-slate-700 transition">
           <span className="text-xs text-slate-400">2026 年已入帳實收股利</span>
           <div className="text-xl sm:text-2xl font-bold font-mono text-teal-300">
-            {formatTWD(ytdDividendsNet)}
+            {maskTWD(ytdDividendsNet)}
             <span className="text-xs text-slate-500 ml-1">TWD</span>
           </div>
           <div className="text-xs text-slate-400">
-            扣除二代健保補充保費 {formatTWD(ytdNhiTax)}
+            扣除二代健保補充保費 {maskTWD(ytdNhiTax)}
           </div>
         </div>
       </div>
@@ -323,10 +328,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   <div>
                     <span className="text-slate-500 block">持股股數</span>
                     <span className="font-mono font-bold text-slate-200 text-sm">
-                      {formatShares(h.shares)}
+                      {maskShares(h.shares)}
                     </span>
                     <span className="text-[11px] text-slate-400 block">
-                      買進 {h.buyShares.toLocaleString()} + 再投入 {h.reinvestShares.toLocaleString()}
+                      買進 {isPrivacyMaskActive ? '•••' : h.buyShares.toLocaleString()} + 再投入 {isPrivacyMaskActive ? '•••' : h.reinvestShares.toLocaleString()}
                     </span>
                   </div>
 
@@ -343,20 +348,20 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   <div>
                     <span className="text-slate-500 block">真實每股成本</span>
                     <span className="font-mono font-bold text-emerald-400 text-sm">
-                      {realCostPerShare.toFixed(2)} TWD
+                      {maskCost(realCostPerShare)} TWD
                     </span>
                     <span className="text-[11px] text-slate-400 block">
-                      含 18 張零成本再投入
+                      含 {isPrivacyMaskActive ? '••' : (h.reinvestShares / 1000)} 張零成本再投入
                     </span>
                   </div>
 
                   <div>
                     <span className="text-slate-500 block">持股市值</span>
                     <span className="font-mono font-bold text-slate-200 text-sm">
-                      {formatTWD(mktVal)} TWD
+                      {maskTWD(mktVal)} TWD
                     </span>
                     <span className="text-[11px] text-emerald-400 block font-mono">
-                      +{formatTWD(pnl.amount)} (+{pnl.pct.toFixed(2)}%)
+                      +{maskTWD(pnl.amount)} ({maskPct(pnl.pct)})
                     </span>
                   </div>
                 </div>

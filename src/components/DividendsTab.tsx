@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, AlertCircle, Plus, Calendar, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { DividendRecord } from '../types/portfolio';
 import { formatTWD } from '../utils/calculations';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface DividendsTabProps {
   dividends: DividendRecord[];
@@ -9,6 +10,7 @@ interface DividendsTabProps {
 }
 
 export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDividend }) => {
+  const { isPrivacyMaskActive, maskTWD } = usePrivacy();
   const [showAddForm, setShowAddForm] = useState(false);
   const [exDate, setExDate] = useState('2027-01-16');
   const [payDate, setPayDate] = useState('2027-02-15');
@@ -80,7 +82,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
             <span className="text-xs text-slate-400">累計實收股利 (已扣稅費)</span>
             <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-              {formatTWD(totalNet)} <span className="text-xs text-slate-500 font-normal">TWD</span>
+              {maskTWD(totalNet)} <span className="text-xs text-slate-500 font-normal">TWD</span>
             </div>
             <span className="text-[11px] text-slate-500">真實進入帳戶之可支配現金流</span>
           </div>
@@ -88,7 +90,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
             <span className="text-xs text-slate-400">法定除息應配總額 (推估口徑)</span>
             <div className="text-2xl font-bold font-mono text-slate-100 mt-1">
-              {formatTWD(totalGross)} <span className="text-xs text-slate-500 font-normal">TWD</span>
+              {maskTWD(totalGross)} <span className="text-xs text-slate-500 font-normal">TWD</span>
             </div>
             <span className="text-[11px] text-slate-500">持股數 × 當期公告每股配息</span>
           </div>
@@ -96,7 +98,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
             <span className="text-xs text-slate-400">二代健保補充保費扣繳合計</span>
             <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
-              {formatTWD(totalNhi)} <span className="text-xs text-slate-500 font-normal">TWD</span>
+              {maskTWD(totalNhi)} <span className="text-xs text-slate-500 font-normal">TWD</span>
             </div>
             <span className="text-[11px] text-slate-500">扣除率約 0.72%（依認列營利所得比例）</span>
           </div>
@@ -251,7 +253,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
                   </td>
 
                   <td className="py-4 px-4 text-slate-200">
-                    {(d.holdingShares / 1000).toLocaleString()} 張 ({d.holdingShares.toLocaleString()} 股)
+                    {isPrivacyMaskActive ? '••• 張 (•••••• 股)' : `${(d.holdingShares / 1000).toLocaleString()} 張 (${d.holdingShares.toLocaleString()} 股)`}
                   </td>
 
                   <td className="py-4 px-4 text-teal-400 font-bold">
@@ -259,15 +261,15 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
                   </td>
 
                   <td className="py-4 px-4 text-slate-200">
-                    {formatTWD(d.grossAmount)} TWD
+                    {maskTWD(d.grossAmount)} TWD
                   </td>
 
                   <td className="py-4 px-4 text-amber-400 font-bold">
-                    {d.nhiTaxAmount > 0 ? `-${formatTWD(d.nhiTaxAmount)} TWD` : '0 (免扣)'}
+                    {isPrivacyMaskActive ? '-•••• TWD' : (d.nhiTaxAmount > 0 ? `-${formatTWD(d.nhiTaxAmount)} TWD` : '0 (免扣)')}
                   </td>
 
                   <td className="py-4 px-4 font-bold text-emerald-400 text-sm">
-                    {formatTWD(d.netAmount)} TWD
+                    {maskTWD(d.netAmount)} TWD
                   </td>
 
                   <td className="py-4 px-4">
@@ -275,7 +277,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
                       <div>
                         <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 text-[11px] font-sans font-medium border border-teal-500/20">
                           <CheckCircle2 className="w-3 h-3 text-teal-400" />
-                          <span>再投入 {(d.reinvestedShares / 1000).toFixed(0)} 張</span>
+                          <span>再投入 {isPrivacyMaskActive ? '••' : (d.reinvestedShares / 1000).toFixed(0)} 張</span>
                         </span>
                         <div className="text-[10px] text-slate-500 font-sans mt-0.5">
                           零成本稀釋均價
