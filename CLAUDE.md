@@ -115,7 +115,7 @@ scripts/                     共用計算或抓價工具
 - 所有 commit 共用同一份詳細模板，交易紀錄只是其中一種（多了必填的「交易明細」）。
 - 一個 commit 只記錄一個投資事件或一個主題，方便日後用 `git log --grep` 回溯。
 - `.claude/settings.json` 的 SessionStart hook 會在每個工作階段自動執行 `committer.py --install-hook`（可重複執行），讓直接 `git commit` 也會檢查格式；hook 會略過 `Merge`、`Revert`、`fixup!` 開頭的訊息。
-- 在雲端開工時依工作階段指定的分支開發、開 PR，不直接推 `main`。
+- 在雲端開工時依工作階段指定的分支開發；完成後**直接開 PR 並合併到 `main`**，不需再詢問（Hachi 2026-10-15 指示）。不直接 push `main`。
 
 ## 注意事項
 
