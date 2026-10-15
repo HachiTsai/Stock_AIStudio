@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Plus,
-  Trash2,
   CloudUpload,
   BookOpen,
   Sliders,
@@ -47,7 +46,6 @@ interface IntelligenceTabProps {
   baseDividendPerShare: number;
   onAddSignal: (signal: IntelligenceSignal) => void;
   onUpdateSignal: (signal: IntelligenceSignal) => void;
-  onDeleteSignal: (id: string) => void;
   onApplyScenarioToModel: (dividendPerShare: number, label: string) => void;
   onSaveToNotesLibrary: (note: ArchNote) => void;
 }
@@ -57,7 +55,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   baseDividendPerShare,
   onAddSignal,
   onUpdateSignal,
-  onDeleteSignal,
   onApplyScenarioToModel,
   onSaveToNotesLibrary,
 }) => {
@@ -827,14 +824,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>轉存筆記庫</span>
-                  </button>
-
-                  <button
-                    onClick={() => onDeleteSignal(sig.id)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
-                    title="刪除此筆情報"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

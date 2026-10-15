@@ -65,13 +65,14 @@ const AppContent: React.FC = () => {
     }
   });
   const [signalsFeedError, setSignalsFeedError] = useState<string | null>(null);
-  const [deletedSignalIds, setDeletedSignalIds] = useState<string[]>(() => {
+  // 舊版曾把刪除的訊號 id 記在本機；已移除刪除功能，清掉舊記錄讓被隱藏的訊號回來。
+  useEffect(() => {
     try {
-      return JSON.parse(localStorage.getItem('inv_deleted_signal_ids') || '[]');
+      localStorage.removeItem('inv_deleted_signal_ids');
     } catch {
-      return [];
+      /* 無法存取本機儲存時忽略 */
     }
-  });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +83,7 @@ const AppContent: React.FC = () => {
         setSignals((prev) => {
           const feedIds = new Set(feed.map((f) => f.id));
           const mine = prev.filter((s) => !feedIds.has(s.id) && s.syncedToDrive !== true);
-          return [...feed.filter((f) => !deletedSignalIds.includes(f.id)), ...mine];
+          return [...feed, ...mine];
         });
       })
       .catch((err) => {
@@ -218,17 +219,6 @@ const AppContent: React.FC = () => {
     setSignals(signals.map((s) => (s.id === updated.id ? updated : s)));
   };
 
-  const handleDeleteSignal = (id: string) => {
-    setSignals(signals.filter((s) => s.id !== id));
-    const next = [...deletedSignalIds, id];
-    setDeletedSignalIds(next);
-    try {
-      localStorage.setItem('inv_deleted_signal_ids', JSON.stringify(next));
-    } catch {
-      /* 儲存失敗時只影響下次載入是否再出現 */
-    }
-  };
-
   const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
     setExternalScenario({ dividendPerShare, label });
     setActiveTab('target-model');
@@ -300,7 +290,6 @@ const AppContent: React.FC = () => {
             baseDividendPerShare={mainHolding.annualDividendPerShare}
             onAddSignal={handleAddSignal}
             onUpdateSignal={handleUpdateSignal}
-            onDeleteSignal={handleDeleteSignal}
             onApplyScenarioToModel={handleApplyScenarioToModel}
             onSaveToNotesLibrary={handleAddNote}
           />
