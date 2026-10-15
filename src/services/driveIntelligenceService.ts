@@ -220,6 +220,61 @@ export async function readDriveFileText(file: DriveFileSummary): Promise<{
 }
 
 /**
+ * Extract Google Drive / Docs / Sheets / Slides file ID from link or string
+ */
+export function extractDriveFileId(urlOrId: string): string | null {
+  const trimmed = urlOrId.trim();
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(trimmed)) return trimmed;
+  const match =
+    trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) ||
+    trimmed.match(/id=([a-zA-Z0-9_-]+)/) ||
+    trimmed.match(/folders\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Read text from Google Drive by URL or ID (supporting Doc, Sheet, Slide, Markdown)
+ */
+export async function readDriveFileByUrlOrId(urlOrId: string): Promise<{
+  file: DriveFileSummary;
+  text: string;
+  sourceType: SignalSourceType;
+}> {
+  const fileId = extractDriveFileId(urlOrId);
+  if (!fileId) {
+    throw new Error('無法辨識有效的 Google Drive 檔案連結或 ID，請確認網址格式！');
+  }
+
+  const token = await getAccessToken();
+  if (!token) throw new Error('NEEDS_AUTH');
+
+  // Fetch file metadata
+  const metaRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,webViewLink&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!metaRes.ok) {
+    if (metaRes.status === 401) throw new Error('AUTH_EXPIRED');
+    if (metaRes.status === 403 || metaRes.status === 404) {
+      throw new Error(`無法存取該檔案 (${metaRes.status})。請確認該檔案已放置在共用資料夾內且具備讀取權限！`);
+    }
+    throw new Error(`讀取 Google Drive 檔案資訊失敗 (${metaRes.status})`);
+  }
+
+  const fileData = await metaRes.json();
+  const fileSummary: DriveFileSummary = {
+    id: fileData.id,
+    name: fileData.name,
+    mimeType: fileData.mimeType,
+    webViewLink: fileData.webViewLink || urlOrId,
+  };
+
+  const { text, sourceType } = await readDriveFileText(fileSummary);
+  return { file: fileSummary, text, sourceType };
+}
+
+/**
  * Find or create nested folders in Google Drive by path, e.g. "Project_財商工程/情報與趨勢"
  */
 export async function getOrCreateFolderPath(folderPath: string, token: string): Promise<string | null> {

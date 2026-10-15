@@ -26,6 +26,7 @@ import {
   Minus,
   Upload,
   FileCode,
+  Link2,
 } from 'lucide-react';
 import {
   IntelligenceSignal,
@@ -42,6 +43,7 @@ import {
 import {
   listDriveResearchFiles,
   readDriveFileText,
+  readDriveFileByUrlOrId,
   saveIntelligenceMarkdownToDrive,
   formatSignalAsNoteMarkdown,
   DEFAULT_SHARED_FOLDER_ID,
@@ -87,6 +89,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   const [driveSearchQuery, setDriveSearchQuery] = useState('');
   const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
   const [readingFileId, setReadingFileId] = useState<string | null>(null);
+  const [singleFileUrl, setSingleFileUrl] = useState('');
+  const [isReadingSingleFile, setIsReadingSingleFile] = useState(false);
 
   // Filter state for signal list
   const [filterDimension, setFilterDimension] = useState<SignalDimension | 'all'>('all');
@@ -278,6 +282,42 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       showNotice('error', err.message || '讀取檔案內容失敗');
     } finally {
       setReadingFileId(null);
+    }
+  };
+
+  // Read single file directly by Google Drive URL or File ID
+  const handleReadSingleFile = async () => {
+    if (!singleFileUrl.trim()) {
+      showNotice('error', '請先貼上 Google Drive 檔案連結或 ID！');
+      return;
+    }
+    setIsReadingSingleFile(true);
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const authRes = await googleSignIn();
+        if (!authRes) {
+          setIsReadingSingleFile(false);
+          return;
+        }
+      }
+      const { file, text, sourceType: detectedType } = await readDriveFileByUrlOrId(singleFileUrl.trim());
+      setRawText(`【來源檔案：${file.name}】\n${text}`);
+      setSourceUrl(file.webViewLink || singleFileUrl.trim());
+      setSourceType(detectedType);
+
+      const extracted = extractSignalByRules(
+        text,
+        file.webViewLink || singleFileUrl.trim(),
+        detectedType,
+        '00882'
+      );
+      setDraftSignal(extracted);
+      showNotice('success', `✨ 已成功自連結讀取「${file.name}」並完成結構化萃取！`);
+    } catch (err: any) {
+      showNotice('error', err.message || '讀取 Google Drive 檔案失敗');
+    } finally {
+      setIsReadingSingleFile(false);
     }
   };
 
@@ -644,20 +684,35 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               <FileText className="w-3.5 h-3.5" />
               <span>在 APP 貼上文字 / 網址</span>
             </button>
-            <button
-              onClick={() => {
-                setInputMode('drive');
-                if (driveFiles.length === 0) handleLoadDriveFiles();
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                inputMode === 'drive'
-                  ? 'bg-teal-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>從共用 Google Drive 讀取 (Doc/Sheet/Slide/md)</span>
-            </button>
+            <div className="flex items-center">
+              <button
+                onClick={() => {
+                  setInputMode('drive');
+                  if (driveFiles.length === 0) handleLoadDriveFiles();
+                }}
+                className={`px-3.5 py-1.5 rounded-l-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                  inputMode === 'drive'
+                    ? 'bg-teal-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>從共用 Google Drive 讀取 (Doc/Sheet/Slide/md)</span>
+              </button>
+              <a
+                href={DEFAULT_SHARED_FOLDER_URL}
+                target="_blank"
+                rel="noreferrer"
+                title="直接在 Google Drive 開啟預設共用資料夾"
+                className={`px-2 py-1.5 rounded-r-lg text-xs transition flex items-center border-l ${
+                  inputMode === 'drive'
+                    ? 'bg-teal-700 text-teal-100 hover:bg-teal-500 border-teal-500/50'
+                    : 'bg-slate-900 text-slate-400 hover:text-teal-300 border-slate-800'
+                }`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
             <button
               onClick={() => setInputMode('local_md')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
@@ -768,7 +823,65 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
 
         {/* Mode 3: Google Drive Shared Folder File Picker Panel (Doc / Sheet / Slide / md) */}
         {inputMode === 'drive' && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Directly Linked Shared Folder Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-950/70 via-slate-950 to-slate-950 border border-teal-500/40 space-y-3 shadow-lg shadow-teal-950/30">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-teal-400" />
+                    <span className="text-xs font-bold text-slate-100">預設共用資料夾直達連結</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold border border-emerald-500/30">
+                      已設共用
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    已直接為您連結雲端共用資料夾，點擊按鈕即可一鍵在 Google Drive 開啟並檢視、上傳或建立 Doc / Sheet / Slide / .md 筆記：
+                  </p>
+                </div>
+
+                <a
+                  href={DEFAULT_SHARED_FOLDER_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-teal-600/30 shrink-0"
+                >
+                  <span>開啟預設共用資料夾</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+
+              {/* Quick File URL Reader from the Shared Folder */}
+              <div className="pt-3 border-t border-slate-800/80">
+                <div className="text-[11px] text-slate-400 mb-1.5 flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-teal-400" />
+                  <span>貼上共用資料夾內任一檔案共用連結 (Doc / Sheet / Slide / md) 或檔案 ID 快速讀取：</span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Globe className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
+                    <input
+                      type="url"
+                      value={singleFileUrl}
+                      onChange={(e) => setSingleFileUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleReadSingleFile()}
+                      placeholder="貼上檔案連結，例如：https://docs.google.com/... 或 https://drive.google.com/file/d/..."
+                      className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleReadSingleFile}
+                    disabled={isReadingSingleFile || !singleFileUrl.trim()}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>{isReadingSingleFile ? '讀取解析中...' : '讀取此連結並解析'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Search and Action Bar */}
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
@@ -789,7 +902,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
-                <span>{isLoadingDriveFiles ? '載入中...' : '重新整理'}</span>
+                <span>{isLoadingDriveFiles ? '載入中...' : '重新整理清單'}</span>
               </button>
             </div>
 
@@ -910,14 +1023,23 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                           : '此篩選分類下尚無檔案。您可將 .md、Doc、Sheet、Slide 檔案上傳至共用資料夾，或於 APP 內點擊「儲存至 Google Drive」自動存入！'}
                       </p>
                       {!isLoadingDriveFiles && (
-                        <div className="pt-2 flex justify-center">
+                        <div className="pt-2 flex flex-wrap justify-center gap-2">
+                          <a
+                            href={DEFAULT_SHARED_FOLDER_URL}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition cursor-pointer shadow-lg shadow-teal-600/20"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>直接開啟共用資料夾</span>
+                          </a>
                           <button
                             type="button"
                             onClick={() => handleLoadDriveFiles()}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium transition cursor-pointer shadow-lg shadow-teal-600/20"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
-                            <span>重新整理</span>
+                            <span>重試清單同步</span>
                           </button>
                         </div>
                       )}
