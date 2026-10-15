@@ -403,10 +403,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 </div>
               </div>
             </div>
-
-            <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs text-amber-300/90 leading-relaxed">
-              <strong>集中度備忘：</strong> 目前為 00882 單一標的集中配置。年配息約 1.00，現金流強勁，後續可依財商架構擴展不同市場與多元配置。
-            </div>
           </div>
 
           {/* Annual Cashflow Schedule Card */}
