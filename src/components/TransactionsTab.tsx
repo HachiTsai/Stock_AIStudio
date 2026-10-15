@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { History, Plus, TrendingUp, RefreshCw, AlertCircle, ShieldCheck } from 'lucide-react';
 import { Transaction, Holding } from '../types/portfolio';
 import { formatTWD, formatShares, calculateRealCostPerShare } from '../utils/calculations';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface TransactionsTabProps {
   transactions: Transaction[];
@@ -14,6 +15,7 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
   holding,
   onAddTransaction,
 }) => {
+  const { isPrivacyMaskActive, maskTWD, maskCost } = usePrivacy();
   const [showAddForm, setShowAddForm] = useState(false);
   const [type, setType] = useState<'Buy' | 'Sell' | 'Reinvest'>('Reinvest');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -76,15 +78,17 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
           <div>
             <span className="text-slate-500 font-sans block">純買進總本金 (Buy)</span>
             <span className="font-bold text-slate-100 text-base">
-              {formatTWD(holding.buyTotalCost)} TWD
+              {maskTWD(holding.buyTotalCost)} TWD
             </span>
-            <span className="text-[11px] text-slate-500 block">共 {(holding.buyShares / 1000).toFixed(0)} 張</span>
+            <span className="text-[11px] text-slate-500 block">
+              共 {isPrivacyMaskActive ? '••' : (holding.buyShares / 1000).toFixed(0)} 張
+            </span>
           </div>
 
           <div>
             <span className="text-slate-500 font-sans block">股息再投入股數 (Reinvest)</span>
             <span className="font-bold text-teal-400 text-base">
-              {(holding.reinvestShares / 1000).toFixed(0)} 張 ({holding.reinvestShares.toLocaleString()} 股)
+              {isPrivacyMaskActive ? '•• 張 (•••••• 股)' : `${(holding.reinvestShares / 1000).toFixed(0)} 張 (${holding.reinvestShares.toLocaleString()} 股)`}
             </span>
             <span className="text-[11px] text-slate-500 block">成本計為 0 TWD</span>
           </div>
@@ -92,7 +96,7 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
           <div>
             <span className="text-slate-500 font-sans block">交易手續費總計</span>
             <span className="font-bold text-slate-300 text-base">
-              {formatTWD(holding.totalFees)} TWD
+              {maskTWD(holding.totalFees)} TWD
             </span>
             <span className="text-[11px] text-slate-500 block">獨立列帳不併入持股成本</span>
           </div>
@@ -100,10 +104,10 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
           <div>
             <span className="text-slate-500 font-sans block">稀釋後真實每股成本</span>
             <span className="font-bold text-emerald-400 text-lg">
-              {realCost.toFixed(2)} TWD
+              {maskCost(realCost)} TWD
             </span>
             <span className="text-[11px] text-slate-400 block font-sans">
-              未再投入前約 14.68
+              未再投入前約 {isPrivacyMaskActive ? '••.••' : '14.68'}
             </span>
           </div>
         </div>
@@ -247,7 +251,7 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
                   </td>
 
                   <td className="py-4 px-4 font-bold text-slate-100">
-                    {(tx.shares / 1000).toFixed(0)} 張 ({tx.shares.toLocaleString()} 股)
+                    {isPrivacyMaskActive ? '•• 張 (•••••• 股)' : `${(tx.shares / 1000).toFixed(0)} 張 (${tx.shares.toLocaleString()} 股)`}
                   </td>
 
                   <td className="py-4 px-4 text-slate-300">
@@ -258,12 +262,12 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
                     {tx.type === 'Reinvest' ? (
                       <span className="text-teal-400">0 (股息再投入)</span>
                     ) : (
-                      formatTWD(tx.shares * tx.price)
+                      maskTWD(tx.shares * tx.price)
                     )}
                   </td>
 
                   <td className="py-4 px-4 text-slate-400">
-                    {tx.fees > 0 ? formatTWD(tx.fees) : '0'}
+                    {isPrivacyMaskActive ? '••' : (tx.fees > 0 ? formatTWD(tx.fees) : '0')}
                   </td>
 
                   <td className="py-4 px-4 text-slate-400 font-sans max-w-xs truncate" title={tx.notes}>

@@ -19,6 +19,7 @@ import {
   formatTWD, 
   formatShares 
 } from '../utils/calculations';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface PortfolioTabProps {
   holdings: Holding[];
@@ -36,6 +37,8 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState<string>('');
   const [editDividend, setEditDividend] = useState<string>('');
+
+  const { isPrivacyMaskActive, maskTWD, maskShares, maskCost, maskPct } = usePrivacy();
 
   const startEdit = (h: Holding) => {
     setEditingId(h.id);
@@ -122,9 +125,9 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                     </td>
 
                     <td className="py-4 px-4 font-mono">
-                      <div className="font-bold text-slate-100">{formatShares(h.shares)}</div>
+                      <div className="font-bold text-slate-100">{maskShares(h.shares)}</div>
                       <div className="text-[11px] text-slate-400">
-                        買進 {h.buyShares.toLocaleString()} ｜ 再投入 {h.reinvestShares.toLocaleString()} (零成本)
+                        買進 {isPrivacyMaskActive ? '•••' : h.buyShares.toLocaleString()} ｜ 再投入 {isPrivacyMaskActive ? '•••' : h.reinvestShares.toLocaleString()} (零成本)
                       </div>
                     </td>
 
@@ -146,20 +149,20 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                     </td>
 
                     <td className="py-4 px-4 font-mono">
-                      <div className="font-bold text-emerald-400 text-sm">{realCost.toFixed(2)}</div>
+                      <div className="font-bold text-emerald-400 text-sm">{maskCost(realCost)}</div>
                       <div className="text-[11px] text-slate-400">
-                        本金 {formatTWD(h.buyTotalCost)}
+                        本金 {maskTWD(h.buyTotalCost)}
                       </div>
                     </td>
 
                     <td className="py-4 px-4 font-mono">
-                      <div className="font-bold text-slate-100 text-sm">{formatTWD(mktVal)}</div>
+                      <div className="font-bold text-slate-100 text-sm">{maskTWD(mktVal)}</div>
                       <div className="text-[11px] text-slate-500">TWD</div>
                     </td>
 
                     <td className="py-4 px-4 font-mono">
-                      <div className="font-bold text-emerald-400">+{formatTWD(pnl.amount)}</div>
-                      <div className="text-[11px] text-emerald-500">+{pnl.pct.toFixed(2)}%</div>
+                      <div className="font-bold text-emerald-400">+{maskTWD(pnl.amount)}</div>
+                      <div className="text-[11px] text-emerald-500">({maskPct(pnl.pct)})</div>
                     </td>
 
                     <td className="py-4 px-4 font-mono">
@@ -243,10 +246,10 @@ export const PortfolioTab: React.FC<PortfolioTabProps> = ({
                 </div>
                 <div className="flex items-center space-x-2 text-xs font-mono">
                   <span className="text-slate-400">市值：</span>
-                  <span className="font-bold text-slate-200">{formatTWD(snap.totalMarketValue)} TWD</span>
+                  <span className="font-bold text-slate-200">{maskTWD(snap.totalMarketValue)} TWD</span>
                   <span className="text-slate-500">｜</span>
                   <span className="text-slate-400">推估年股利：</span>
-                  <span className="font-bold text-emerald-400">{formatTWD(snap.projectedAnnualDividend)} TWD</span>
+                  <span className="font-bold text-emerald-400">{maskTWD(snap.projectedAnnualDividend)} TWD</span>
                 </div>
               </div>
 

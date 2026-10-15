@@ -24,6 +24,7 @@ import {
 } from '../utils/calculations';
 import { fetchCurrentPriceFromCoreSheet } from '../services/sheetsService';
 import { googleSignIn, getAccessToken } from '../services/googleAuth';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface LatestQuoteModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
   onUpdateHolding,
   onSuccessToast,
 }) => {
+  const { isPrivacyMaskActive, maskTWD, maskShares, maskCost, maskPct } = usePrivacy();
   const mainHolding = holdings[0] || null;
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>(mainHolding?.id || '');
   
@@ -190,7 +192,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
               <div>
                 <div className="font-bold text-slate-100 text-sm">{holding.name}</div>
                 <div className="text-xs text-slate-400">
-                  持股數：{formatShares(holding.shares)} ｜ 現有紀錄：{holding.lastUpdated}
+                  持股數：{maskShares(holding.shares)} ｜ 現有紀錄：{holding.lastUpdated}
                 </div>
               </div>
             </div>
@@ -317,16 +319,16 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <span className="text-slate-400 block">持股市值 (股數 × 股價)</span>
                 <div className="flex items-baseline justify-between font-mono">
                   <span className="text-slate-500 line-through text-[11px]">
-                    {formatTWD(oldMarketValue)} TWD
+                    {maskTWD(oldMarketValue)} TWD
                   </span>
                   <span className="text-base font-bold text-slate-100">
-                    {formatTWD(newMarketValue)} TWD
+                    {maskTWD(newMarketValue)} TWD
                   </span>
                 </div>
                 <div className="text-[11px] font-mono flex justify-between">
                   <span className="text-slate-500">市值變動：</span>
                   <span className={marketValueDiff >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {marketValueDiff >= 0 ? `+${formatTWD(marketValueDiff)}` : formatTWD(marketValueDiff)} TWD
+                    {marketValueDiff >= 0 ? `+${maskTWD(marketValueDiff)}` : maskTWD(marketValueDiff)} TWD
                   </span>
                 </div>
               </div>
@@ -336,16 +338,16 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <span className="text-slate-400 block">未實現資本損益 (市值 − 純買進本金)</span>
                 <div className="flex items-baseline justify-between font-mono">
                   <span className="text-slate-500 line-through text-[11px]">
-                    +{formatTWD(oldPnL)} ({oldPnLPct.toFixed(2)}%)
+                    +{maskTWD(oldPnL)} ({maskPct(oldPnLPct)})
                   </span>
                   <span className="text-base font-bold text-emerald-400">
-                    +{formatTWD(newPnL)} TWD
+                    +{maskTWD(newPnL)} TWD
                   </span>
                 </div>
                 <div className="text-[11px] font-mono flex justify-between">
                   <span className="text-slate-500">報酬率：</span>
                   <span className="text-emerald-400 font-semibold">
-                    +{newPnLPct.toFixed(2)}%
+                    {maskPct(newPnLPct)}
                   </span>
                 </div>
               </div>
@@ -374,16 +376,16 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
                 <span className="text-slate-400 block">50 萬目標需追加本金 (缺口 20 萬 ÷ 殖利率)</span>
                 <div className="flex items-baseline justify-between font-mono">
                   <span className="text-slate-500 line-through text-[11px]">
-                    ≈ {formatTWD(oldReqCapital)} TWD
+                    ≈ {maskTWD(oldReqCapital)} TWD
                   </span>
                   <span className="text-base font-bold text-amber-300">
-                    ≈ {formatTWD(newReqCapital)} TWD
+                    ≈ {maskTWD(newReqCapital)} TWD
                   </span>
                 </div>
                 <div className="text-[11px] font-mono flex justify-between">
                   <span className="text-slate-500">需加碼張數：</span>
                   <span className="text-slate-200 font-bold">
-                    約 {newLotsNeeded} 張 00882
+                    約 {isPrivacyMaskActive ? '•••' : newLotsNeeded} 張 00882
                   </span>
                 </div>
               </div>
@@ -394,7 +396,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
           <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-800 text-xs text-slate-400 flex items-start gap-2">
             <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span>
-              <strong>計算口徑提示：</strong> 真實每股成本維持 <strong>{realCostPerShare.toFixed(2)} TWD</strong>（純現金買進本金 ÷ 總持股數，不隨市價浮動）。更新報價將自動刷新總覽、股利模型與 3D 曲線。
+              <strong>計算口徑提示：</strong> 真實每股成本維持 <strong>{maskCost(realCostPerShare)} TWD</strong>（純現金買進本金 ÷ 總持股數，不隨市價浮動）。更新報價將自動刷新總覽、股利模型與 3D 曲線。
             </span>
           </div>
 

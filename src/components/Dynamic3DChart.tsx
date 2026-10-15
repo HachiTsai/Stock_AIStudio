@@ -12,6 +12,7 @@ import {
   HelpCircle 
 } from 'lucide-react';
 import { formatTWD } from '../utils/calculations';
+import { usePrivacy } from '../context/PrivacyContext';
 
 interface Dynamic3DChartProps {
   targetAnnualDividend: number;
@@ -32,6 +33,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({
   reinvestRatioPct,
   taxRatePct,
 }) => {
+  const { isPrivacyMaskActive, maskTWD } = usePrivacy();
   const mountRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<'yield' | 'cashflow' | 'compound'>('cashflow');
   const [isAutoRotating, setIsAutoRotating] = useState(true);
@@ -637,7 +639,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({
             <div>股價：<strong className="text-slate-100">{currentPrice.toFixed(2)} TWD</strong></div>
             <div>年配息：<strong className="text-amber-300">{currentDivPerShare.toFixed(2)} TWD/股</strong></div>
             <div>殖利率：<strong className="text-teal-300">{((currentDivPerShare / currentPrice) * 100).toFixed(2)}%</strong></div>
-            <div>年實收推估：<strong className="text-emerald-400">{formatTWD(currentShares * currentDivPerShare * (1 - taxRatePct / 100))} TWD</strong></div>
+            <div>年實收推估：<strong className="text-emerald-400">{maskTWD(currentShares * currentDivPerShare * (1 - taxRatePct / 100))} TWD</strong></div>
           </div>
         </div>
 
