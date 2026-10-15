@@ -42,9 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <span className="font-bold text-lg text-slate-100 tracking-tight">Investment Tracker</span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  財商工程大本營
-                </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
                 目標：每年被動股利 50 萬 TWD ｜ 高股息複利再投入
