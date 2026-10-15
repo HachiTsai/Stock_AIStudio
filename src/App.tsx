@@ -211,14 +211,6 @@ const AppContent: React.FC = () => {
     setNotes([newNote, ...notes]);
   };
 
-  const handleAddSignal = (newSignal: IntelligenceSignal) => {
-    setSignals([newSignal, ...signals]);
-  };
-
-  const handleUpdateSignal = (updated: IntelligenceSignal) => {
-    setSignals(signals.map((s) => (s.id === updated.id ? updated : s)));
-  };
-
   const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
     setExternalScenario({ dividendPerShare, label });
     setActiveTab('target-model');
@@ -288,8 +280,6 @@ const AppContent: React.FC = () => {
           <IntelligenceTab
             signals={signals}
             baseDividendPerShare={mainHolding.annualDividendPerShare}
-            onAddSignal={handleAddSignal}
-            onUpdateSignal={handleUpdateSignal}
             onApplyScenarioToModel={handleApplyScenarioToModel}
           />
         )}
