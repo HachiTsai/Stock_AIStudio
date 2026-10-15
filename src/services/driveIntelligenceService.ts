@@ -334,8 +334,44 @@ export async function getOrCreateFolderPath(folderPath: string, token: string): 
   return parentId;
 }
 
+/** Minimal Markdown -> HTML so Drive can convert the upload into a Google Doc. */
+function markdownToHtml(md: string): string {
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (t: string) =>
+    esc(t)
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+  const out: string[] = [];
+  let inList = false;
+  let inTable = false;
+  const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+  const closeTable = () => { if (inTable) { out.push('</table>'); inTable = false; } };
+  const lines = md.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n');
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    const li = line.match(/^\s*[-*]\s+(.*)$/);
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      closeList();
+      if (/^\s*\|[\s:|-]+\|\s*$/.test(line)) continue;
+      if (!inTable) { out.push('<table border="1" cellpadding="4">'); inTable = true; }
+      const cells = line.trim().replace(/^\||\|$/g, '').split('|').map((c) => `<td>${inline(c.trim())}</td>`);
+      out.push(`<tr>${cells.join('')}</tr>`);
+      continue;
+    }
+    closeTable();
+    if (h) { closeList(); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); }
+    else if (li) { if (!inList) { out.push('<ul>'); inList = true; } out.push(`<li>${inline(li[1])}</li>`); }
+    else if (line.trim() === '') { closeList(); }
+    else { closeList(); out.push(`<p>${inline(line)}</p>`); }
+  }
+  closeList();
+  closeTable();
+  return `<html><head><meta charset="utf-8"></head><body>${out.join('\n')}</body></html>`;
+}
+
 /**
- * Save an IntelligenceSignal or Trend Synthesis Report as a new Markdown file in the shared Google Drive folder
+ * Save an IntelligenceSignal or Trend Synthesis Report as a new Google Doc (converted from Markdown) in the shared Google Drive folder
  * Shared folder URL: https://drive.google.com/drive/folders/1OkXyIl0huNSeYEOU1lDM0sfYNxG1gFpq?usp=sharing
  */
 export async function saveIntelligenceMarkdownToDrive({
@@ -353,8 +389,8 @@ export async function saveIntelligenceMarkdownToDrive({
   if (!token) throw new Error('NEEDS_AUTH');
 
   const metadata: any = {
-    name: fileName.endsWith('.md') ? fileName : `${fileName}.md`,
-    mimeType: 'text/markdown',
+    name: fileName.replace(/\.md$/i, ''),
+    mimeType: 'application/vnd.google-apps.document',
     description: '由 Investment Tracker 財商工程產出之客觀趨勢情報筆記',
     parents: [folderId],
   };
@@ -368,8 +404,8 @@ export async function saveIntelligenceMarkdownToDrive({
     'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
     JSON.stringify(metadata) +
     delimiter +
-    'Content-Type: text/markdown; charset=UTF-8\r\n\r\n' +
-    markdownContent +
+    'Content-Type: text/html; charset=UTF-8\r\n\r\n' +
+    markdownToHtml(markdownContent) +
     closeDelimiter;
 
   const res = await fetch(
