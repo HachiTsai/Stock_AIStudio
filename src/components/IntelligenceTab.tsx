@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import {
   Scale,
-  Sparkles,
-  Zap,
-  Globe,
-  CheckCircle2,
-  AlertTriangle,
   ArrowRight,
-  Plus,
   Sliders,
-  ShieldCheck,
-  X,
   Layers,
   TrendingUp,
   TrendingDown,
@@ -20,154 +12,26 @@ import {
   IntelligenceSignal,
   SignalDimension,
   SignalDirection,
-  SignalSourceType,
 } from '../types/portfolio';
-import {
-  extractSignalByRules,
-  synthesizeObjectiveTrends,
-} from '../utils/intelligenceEngine';
+import { synthesizeObjectiveTrends } from '../utils/intelligenceEngine';
 
 interface IntelligenceTabProps {
   signals: IntelligenceSignal[];
   baseDividendPerShare: number;
-  onAddSignal: (signal: IntelligenceSignal) => void;
-  onUpdateSignal: (signal: IntelligenceSignal) => void;
   onApplyScenarioToModel: (dividendPerShare: number, label: string) => void;
 }
 
 export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   signals,
   baseDividendPerShare,
-  onAddSignal,
-  onUpdateSignal,
   onApplyScenarioToModel,
 }) => {
-  const [rawText, setRawText] = useState('');
-  const [sourceUrl, setSourceUrl] = useState('');
-  const [sourceType, setSourceType] = useState<SignalSourceType>('app_paste');
-  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-  const [isExtractingAI, setIsExtractingAI] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Draft signal after extraction (for preview & user tweak before saving)
-  const [draftSignal, setDraftSignal] = useState<Omit<IntelligenceSignal, 'id'> | null>(null);
-
   // Filter state for signal list
   const [filterDimension, setFilterDimension] = useState<SignalDimension | 'all'>('all');
   const [filterDirection, setFilterDirection] = useState<SignalDirection | 'all'>('all');
 
   // Compute live objective trend synthesis
   const synthesis = synthesizeObjectiveTrends(signals, baseDividendPerShare);
-
-  const showNotice = (type: 'success' | 'error', text: string) => {
-    setStatusMessage({ type, text });
-    setTimeout(() => setStatusMessage(null), 5500);
-  };
-
-  // 1. Fetch URL content via backend proxy
-  const handleFetchUrl = async () => {
-    if (!sourceUrl.trim()) return;
-    setIsFetchingUrl(true);
-    try {
-      const res = await fetch('/api/intelligence/fetch-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sourceUrl.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '讀取網址失敗');
-      setRawText(`【${data.title}】\n${data.text}`);
-      setSourceType('url_fetch');
-      showNotice('success', `已成功抓取網址內容（${data.title.slice(0, 24)}...），可進行規則或 AI 解析！`);
-    } catch (err: any) {
-      showNotice('error', err.message || '抓取網址失敗，請直接貼上文字內容');
-    } finally {
-      setIsFetchingUrl(false);
-    }
-  };
-
-  // 2A. Mode 1: Deterministic Rule-Based Extraction (Zero AI API)
-  const handleRuleExtract = () => {
-    if (!rawText.trim()) {
-      showNotice('error', '請先貼上文字內容、抓取網址或從 Google Drive 讀取檔案');
-      return;
-    }
-    const extracted = extractSignalByRules(rawText, sourceUrl, sourceType, '00882');
-    setDraftSignal(extracted);
-    showNotice('success', '⚡ 已透過「純規則量化引擎（免 AI API）」完成硬數據與維度拆解！');
-  };
-
-  // 2B. Mode 2: Server-Side Gemini Flash AI Extraction
-  const handleAIExtract = async () => {
-    if (!rawText.trim()) {
-      showNotice('error', '請先貼上文字內容、抓取網址或從 Google Drive 讀取檔案');
-      return;
-    }
-    setIsExtractingAI(true);
-    try {
-      const res = await fetch('/api/intelligence/ai-extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rawText,
-          sourceUrl,
-          ticker: '00882',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'AI 萃取失敗');
-
-      const validDim: SignalDimension =
-        data.dimension === 'valuation_margin' || data.dimension === 'friction_fx'
-          ? data.dimension
-          : 'dividend_sustainability';
-
-      const validDir: SignalDirection =
-        data.direction === 'bullish' || data.direction === 'bearish' ? data.direction : 'neutral';
-
-      setDraftSignal({
-        date: new Date().toISOString().split('T')[0],
-        ticker: data.ticker || '00882',
-        title: data.title || '客觀情報摘要',
-        rawContent: rawText,
-        sourceUrl: sourceUrl || undefined,
-        sourceType,
-        dimension: validDim,
-        direction: validDir,
-        weight: Math.max(1, Math.min(5, Number(data.weight) || 3)),
-        hardFacts: Array.isArray(data.hardFacts) && data.hardFacts.length > 0 ? data.hardFacts : [rawText.slice(0, 80)],
-        extractedMetrics: Array.isArray(data.extractedMetrics) ? data.extractedMetrics : [],
-        impliedDividendShift: Number(data.impliedDividendShift) || 0,
-        objectiveReasoning: data.objectiveReasoning || '依客觀數據推導之現金流影響。',
-        tags: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags : ['AI萃取情報'],
-        extractionMethod: 'ai_assisted',
-        syncedToDrive: false,
-      });
-      showNotice('success', '✨ 已透過「AI 智慧去情緒化引擎」完成客觀數據萃取！');
-    } catch (err: any) {
-      // Fallback to rule engine if AI fails
-      const fallback = extractSignalByRules(rawText, sourceUrl, sourceType, '00882');
-      setDraftSignal(fallback);
-      showNotice('error', `AI 呼叫異常（${err.message}），已自動切換為「純規則量化引擎」完成解析！`);
-    } finally {
-      setIsExtractingAI(false);
-    }
-  };
-
-  // 4. Save Draft Signal to Local State
-  const handleConfirmDraft = () => {
-    if (!draftSignal) return;
-    const newSignal: IntelligenceSignal = {
-      ...draftSignal,
-      id: `sig-${Date.now()}`,
-    };
-    onAddSignal(newSignal);
-    setDraftSignal(null);
-    setRawText('');
-    setSourceUrl('');
-
-    showNotice('success', `已將「${newSignal.title}」加入情報中心並更新客觀趨勢天平！`);
-  };
 
   const filteredSignals = signals.filter((s) => {
     if (filterDimension !== 'all' && s.dimension !== filterDimension) return false;
@@ -199,29 +63,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
-      {/* Status Toast */}
-      {statusMessage && (
-        <div
-          className={`p-4 rounded-xl border text-xs flex items-center justify-between shadow-lg animate-fade-in ${
-            statusMessage.type === 'success'
-              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
-              : 'bg-rose-500/15 border-rose-500/30 text-rose-300'
-          }`}
-        >
-          <div className="flex items-center space-x-2.5">
-            {statusMessage.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-            )}
-            <span className="font-medium">{statusMessage.text}</span>
-          </div>
-          <button onClick={() => setStatusMessage(null)} className="ml-4 font-bold opacity-75 hover:opacity-100">
-            ✕
-          </button>
-        </div>
-      )}
-
       {/* Section 1: Objective Trend Radar & 3D Model Bridge */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -371,220 +212,6 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Section 2: Input & Extraction Workbench (Paste Text / URL) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="pb-4 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-emerald-400" />
-            <span>在 APP 貼上文字 / 網址萃取硬數據</span>
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            在此貼上任何新聞段落、法說會摘要、ETF 淨值/可分配收益數據、匯率變動或您的觀察筆記；提供「免 AI 純規則引擎」與「AI 智慧萃取」雙模，自動提煉硬數據與股利邊際影響。
-          </p>
-        </div>
-
-        {/* Paste Text or URL Form */}
-        <div className="space-y-4">
-          {/* Optional URL bar */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Globe className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-              <input
-                type="url"
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="選填：貼上財經新聞、公告或研究報告網址 (URL)，可自動抓取內文..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleFetchUrl}
-              disabled={isFetchingUrl || !sourceUrl.trim()}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer shrink-0"
-            >
-              {isFetchingUrl ? '抓取網址中...' : '抓取網址內文'}
-            </button>
-          </div>
-
-          {/* Raw Textarea */}
-          <div>
-            <textarea
-              rows={4}
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="在此貼上任何新聞段落、法說會摘要、ETF 淨值/可分配收益數據、匯率變動或您的觀察筆記...&#10;例如：「00882 成分股中國神華公告最新年度派息率達 75%，EPS 年增 4.5%，目前 ETF 折價 0.25%」"
-              className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Dual-Mode Extraction Action Buttons */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>支援雙模解析：預設「純規則引擎」零 API 成本，長文可選用「AI 智慧萃取」</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleRuleExtract}
-                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition cursor-pointer"
-              >
-                <Zap className="w-4 h-4" />
-                <span>⚡ 純規則量化解析 (免 AI API)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAIExtract}
-                disabled={isExtractingAI}
-                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/40 text-xs font-semibold transition cursor-pointer"
-              >
-                <Sparkles className={`w-4 h-4 text-teal-400 ${isExtractingAI ? 'animate-spin' : ''}`} />
-                <span>{isExtractingAI ? 'AI 萃取中...' : '✨ AI 智慧去情緒化萃取'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Draft Preview & Customization Box (Appears after extraction) */}
-        {draftSignal && (
-          <div className="p-5 rounded-2xl bg-slate-950 border-2 border-emerald-500/40 space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
-                  結構化預覽與微調
-                </span>
-                <span className="text-xs text-slate-400">
-                  解析引擎：{draftSignal.extractionMethod === 'ai_assisted' ? '✨ AI 智慧去情緒化萃取' : '⚡ 純規則量化解析'}
-                </span>
-              </div>
-              <button
-                onClick={() => setDraftSignal(null)}
-                className="text-slate-500 hover:text-slate-300 text-xs"
-              >
-                取消
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 space-y-1">
-                <label className="text-[11px] text-slate-400">客觀事實標題</label>
-                <input
-                  type="text"
-                  value={draftSignal.title}
-                  onChange={(e) => setDraftSignal({ ...draftSignal, title: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-slate-100"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-400">影響維度分類</label>
-                <select
-                  value={draftSignal.dimension}
-                  onChange={(e) =>
-                    setDraftSignal({ ...draftSignal, dimension: e.target.value as SignalDimension })
-                  }
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200"
-                >
-                  <option value="dividend_sustainability">① 配息續航力 (分紅/EPS/平準金)</option>
-                  <option value="valuation_margin">② 估值與安全邊際 (殖利率/淨值)</option>
-                  <option value="friction_fx">③ 稅費與匯率摩擦 (健保/港幣匯率)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Direction */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-400">對未來股利影響方向</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { id: 'bullish', label: '🟢 正向', color: 'bg-emerald-600 text-white' },
-                    { id: 'neutral', label: '⚪ 中性', color: 'bg-slate-700 text-white' },
-                    { id: 'bearish', label: '🔴 風險', color: 'bg-rose-600 text-white' },
-                  ].map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() =>
-                        setDraftSignal({ ...draftSignal, direction: d.id as SignalDirection })
-                      }
-                      className={`py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                        draftSignal.direction === d.id
-                          ? d.color
-                          : 'bg-slate-900 text-slate-400 border border-slate-800'
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Weight 1-5 */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-400">
-                  客觀證據權重：{draftSignal.weight} / 5
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={draftSignal.weight}
-                  onChange={(e) => setDraftSignal({ ...draftSignal, weight: Number(e.target.value) })}
-                  className="w-full accent-emerald-500 cursor-pointer mt-2"
-                />
-              </div>
-
-              {/* Implied Dividend Shift */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-400">
-                  每股年配息邊際影響推估 (TWD)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={draftSignal.impliedDividendShift}
-                  onChange={(e) =>
-                    setDraftSignal({
-                      ...draftSignal,
-                      impliedDividendShift: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono font-bold text-emerald-400"
-                />
-              </div>
-            </div>
-
-            {/* Extracted Hard Facts */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] text-slate-400">萃取硬數據（Hard Data）</label>
-              <ul className="space-y-1 text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                {draftSignal.hardFacts.map((fact, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-mono">•</span>
-                    <span>{fact}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Confirm Action Buttons */}
-            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleConfirmDraft}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition cursor-pointer"
-              >
-                儲存至情報中心
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Section 3: Side-by-Side Bull vs Bear Evidence Ledger & Signal Cards */}
