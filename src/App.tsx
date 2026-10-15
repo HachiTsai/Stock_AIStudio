@@ -15,7 +15,7 @@ import {
   INITIAL_SNAPSHOTS, 
   INITIAL_ARCH_NOTE 
 } from './data/initialData';
-import { INITIAL_INTELLIGENCE_SIGNALS } from './utils/intelligenceEngine';
+import { fetchSignalsFeed } from './services/signalsFeedService';
 import { Holding, DividendRecord, Transaction, PortfolioSnapshot, ArchNote, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
@@ -55,10 +55,44 @@ const AppContent: React.FC = () => {
   });
 
   // Intelligence Signals state
+  // 資料來源為 Drive「情報資料庫」（免登入讀取）；localStorage 只當離線快取與使用者自己新增的訊號
   const [signals, setSignals] = useState<IntelligenceSignal[]>(() => {
-    const saved = localStorage.getItem('inv_intelligence_signals');
-    return saved ? JSON.parse(saved) : INITIAL_INTELLIGENCE_SIGNALS;
+    try {
+      const saved = localStorage.getItem('inv_intelligence_signals');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
+  const [signalsFeedError, setSignalsFeedError] = useState<string | null>(null);
+  const [deletedSignalIds, setDeletedSignalIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('inv_deleted_signal_ids') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSignalsFeed()
+      .then((feed) => {
+        if (cancelled) return;
+        setSignalsFeedError(null);
+        setSignals((prev) => {
+          const feedIds = new Set(feed.map((f) => f.id));
+          const mine = prev.filter((s) => !feedIds.has(s.id) && s.syncedToDrive !== true);
+          return [...feed.filter((f) => !deletedSignalIds.includes(f.id)), ...mine];
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setSignalsFeedError(err?.message || '讀取情報資料庫失敗');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // External scenario bridged from Intelligence Hub to 3D Target Model
   const [externalScenario, setExternalScenario] = useState<{
@@ -186,6 +220,13 @@ const AppContent: React.FC = () => {
 
   const handleDeleteSignal = (id: string) => {
     setSignals(signals.filter((s) => s.id !== id));
+    const next = [...deletedSignalIds, id];
+    setDeletedSignalIds(next);
+    try {
+      localStorage.setItem('inv_deleted_signal_ids', JSON.stringify(next));
+    } catch {
+      /* 儲存失敗時只影響下次載入是否再出現 */
+    }
   };
 
   const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
@@ -245,6 +286,12 @@ const AppContent: React.FC = () => {
             externalScenario={externalScenario}
             onClearExternalScenario={() => setExternalScenario(null)}
           />
+        )}
+
+        {activeTab === 'intelligence' && signalsFeedError && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {signalsFeedError}。目前顯示的是本機快取；請確認「情報與趨勢」資料夾為公開連結後重新整理。
+          </div>
         )}
 
         {activeTab === 'intelligence' && (
