@@ -102,13 +102,14 @@ export function calculateGoalStats(holdings: Holding[], customTarget: number = T
 
 /**
  * Dividend Compound Simulation
- * Projects dividend growth over N years with dynamic reinvestment ratio + monthly capital additions
+ * Projects dividend growth over N years with dynamic reinvestment ratio + one-time extra capital addition
  */
 export function simulateDividendGrowth({
   initialShares,
   currentPrice,
   dividendPerShare,
-  monthlyAdditionTwd,
+  lumpSumTwd,
+  lumpSumYear = 1,
   dividendGrowthRatePct = 0,
   priceGrowthRatePct = 0,
   reinvestRatioPct = 100,
@@ -119,7 +120,9 @@ export function simulateDividendGrowth({
   initialShares: number;
   currentPrice: number;
   dividendPerShare: number;
-  monthlyAdditionTwd: number;
+  lumpSumTwd: number;
+  /** 一次性加碼於第幾年年初投入（1 = 現在） */
+  lumpSumYear?: number;
   dividendGrowthRatePct?: number;
   priceGrowthRatePct?: number;
   reinvestRatioPct?: number;
@@ -136,22 +139,24 @@ export function simulateDividendGrowth({
 
   for (let year = 1; year <= years; year++) {
     const startShares = shares;
+    // Shares bought at the start of the year already earn that year's dividend
+    if (year === lumpSumYear && price > 0) shares += lumpSumTwd / price;
     const grossAnnualDividend = shares * divPerShare;
     const netAnnualDividend = grossAnnualDividend * (1 - taxRatePct / 100);
     cumulativeDividends += netAnnualDividend;
 
-    // Monthly additions
-    const annualCapitalAddition = monthlyAdditionTwd * 12;
+    // One-time extra addition, bought at the start of lumpSumYear at that year's price
+    const annualCapitalAddition = year === lumpSumYear ? lumpSumTwd : 0;
     cumulativeInvested += annualCapitalAddition;
 
-    // New shares from monthly additions
+    // New shares from the one-time addition
     const newSharesFromCash = price > 0 ? annualCapitalAddition / price : 0;
 
     // New shares from reinvested dividends (based on reinvestRatioPct)
     const amountToReinvest = netAnnualDividend * (reinvestRatioPct / 100);
     const newSharesFromReinvest = price > 0 ? amountToReinvest / price : 0;
 
-    shares += newSharesFromCash + newSharesFromReinvest;
+    shares += newSharesFromReinvest;
 
     const endMarketValue = shares * price;
 
@@ -187,7 +192,8 @@ export function estimateTimeToGoal({
   initialShares,
   currentPrice,
   dividendPerShare,
-  monthlyAdditionTwd,
+  lumpSumTwd,
+  lumpSumYear = 1,
   targetDividend,
   reinvestRatioPct = 100,
   taxRatePct = 0,
@@ -195,26 +201,35 @@ export function estimateTimeToGoal({
   initialShares: number;
   currentPrice: number;
   dividendPerShare: number;
-  monthlyAdditionTwd: number;
+  lumpSumTwd: number;
+  /** 一次性加碼於第幾年年初投入（1 = 現在） */
+  lumpSumYear?: number;
   targetDividend: number;
   reinvestRatioPct?: number;
   taxRatePct?: number;
 }): { years: number; months: number; reachable: boolean } {
   let shares = initialShares;
+  const lumpSumMonth = (lumpSumYear - 1) * 12;
   const initialAnnualNet = shares * dividendPerShare * (1 - taxRatePct / 100);
   if (initialAnnualNet >= targetDividend) {
     return { years: 0, months: 0, reachable: true };
   }
 
-  if (monthlyAdditionTwd <= 0 && (reinvestRatioPct <= 0 || dividendPerShare <= 0)) {
+  if (lumpSumTwd <= 0 && (reinvestRatioPct <= 0 || dividendPerShare <= 0)) {
     return { years: 99, months: 0, reachable: false };
   }
 
   const maxMonths = 360; // 30 years limit
-  for (let m = 1; m <= maxMonths; m++) {
-    // Monthly cash addition buys shares
-    if (monthlyAdditionTwd > 0 && currentPrice > 0) {
-      shares += monthlyAdditionTwd / currentPrice;
+  for (let m = 0; m <= maxMonths; m++) {
+    // One-time cash addition buys shares at the start of its month
+    if (m === lumpSumMonth && lumpSumTwd > 0 && currentPrice > 0) {
+      shares += lumpSumTwd / currentPrice;
+    }
+    if (m === 0) {
+      if (shares * dividendPerShare * (1 - taxRatePct / 100) >= targetDividend) {
+        return { years: 0, months: 0, reachable: true };
+      }
+      continue;
     }
 
     // Dividends assumed distributed semi-annually (month 6 and 12)

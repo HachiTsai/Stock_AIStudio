@@ -54,7 +54,8 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     externalScenario ? externalScenario.dividendPerShare : actualDivPerShare
   );
   const [customPrice, setCustomPrice] = useState<number>(actualPrice);
-  const [customMonthlyCapital, setCustomMonthlyCapital] = useState<number>(30000);
+  const [lumpSumTwd, setLumpSumTwd] = useState<number>(0);
+  const [lumpSumYear, setLumpSumYear] = useState<number>(1);
   const [reinvestRatioPct, setReinvestRatioPct] = useState<number>(100);
   const [taxRatePct, setTaxRatePct] = useState<number>(0.72); // 0.72% observed effective NHI deduction
   const [divGrowthRatePct, setDivGrowthRatePct] = useState<number>(0);
@@ -89,7 +90,8 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     initialShares: activeShares,
     currentPrice: customPrice,
     dividendPerShare: customDivPerShare,
-    monthlyAdditionTwd: customMonthlyCapital,
+    lumpSumTwd,
+    lumpSumYear,
     targetDividend: targetAnnualDividend,
     reinvestRatioPct,
     taxRatePct,
@@ -100,7 +102,8 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     initialShares: activeShares,
     currentPrice: customPrice,
     dividendPerShare: customDivPerShare,
-    monthlyAdditionTwd: customMonthlyCapital,
+    lumpSumTwd,
+    lumpSumYear,
     dividendGrowthRatePct: divGrowthRatePct,
     reinvestRatioPct,
     taxRatePct,
@@ -115,7 +118,8 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
     setCustomShares(actualShares);
     setCustomDivPerShare(actualDivPerShare);
     setCustomPrice(actualPrice);
-    setCustomMonthlyCapital(30000);
+    setLumpSumTwd(0);
+    setLumpSumYear(1);
     setReinvestRatioPct(100);
     setTaxRatePct(0.72);
     setDivGrowthRatePct(0);
@@ -331,32 +335,45 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
             </div>
           </div>
 
-          {/* Column 3: Reinvestment & Monthly Capital */}
+          {/* Column 3: Reinvestment & One-time Capital */}
           <div className="space-y-5 bg-slate-950/60 p-5 rounded-xl border border-slate-800/80">
-            {/* Monthly Capital */}
+            {/* One-time extra capital */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                   <Percent className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>每月額外定期定額加碼</span>
+                  <span>一次性額外加碼</span>
                 </label>
                 <span className="font-mono text-sm font-bold text-emerald-400">
-                  {formatTWD(customMonthlyCapital)} TWD
+                  {formatTWD(lumpSumTwd)} TWD
                 </span>
               </div>
               <input
                 type="range"
                 min="0"
-                max="100000"
-                step="5000"
-                value={customMonthlyCapital}
-                onChange={(e) => setCustomMonthlyCapital(Number(e.target.value))}
+                max="3000000"
+                step="100000"
+                value={lumpSumTwd}
+                onChange={(e) => setLumpSumTwd(Number(e.target.value))}
                 className="w-full accent-emerald-500 cursor-pointer"
               />
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>0 (純靠股利)</span>
-                <span>3 萬</span>
-                <span>10 萬</span>
+                <span>0 (不加碼)</span>
+                <span>150 萬</span>
+                <span>300 萬</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-slate-400">投入時點</span>
+                <select
+                  value={lumpSumYear}
+                  onChange={(e) => setLumpSumYear(Number(e.target.value))}
+                  className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-slate-200 font-mono"
+                >
+                  <option value={1}>現在（第 1 年初）</option>
+                  {Array.from({ length: 9 }, (_, i) => i + 2).map((y) => (
+                    <option key={y} value={y}>第 {y} 年初</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -488,7 +505,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            {reinvestRatioPct > 0 ? `股息 ${reinvestRatioPct}% 再投` : '無再投入'} ＋ 月加碼 {formatTWD(customMonthlyCapital)}
+            {reinvestRatioPct > 0 ? `股息 ${reinvestRatioPct}% 再投` : '無再投入'} ＋ {lumpSumTwd > 0 ? `一次性加碼 ${formatTWD(lumpSumTwd)}（第 ${lumpSumYear} 年初）` : '無額外加碼'}
           </div>
         </div>
       </div>
@@ -499,7 +516,8 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
         currentShares={activeShares}
         currentPrice={customPrice}
         currentDivPerShare={customDivPerShare}
-        monthlyCapital={customMonthlyCapital}
+        lumpSumTwd={lumpSumTwd}
+        lumpSumYear={lumpSumYear}
         reinvestRatioPct={reinvestRatioPct}
         taxRatePct={taxRatePct}
       />
@@ -593,7 +611,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
               <span>動態逐年複利飛輪增長表</span>
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              以當前設定（每月投入 {formatTWD(customMonthlyCapital)} TWD ＋ 股息 {reinvestRatioPct}% 再投入）推估之歷年複利軌跡
+              以當前設定（{lumpSumTwd > 0 ? `第 ${lumpSumYear} 年初一次性加碼 ${formatTWD(lumpSumTwd)} TWD` : '無額外加碼'} ＋ 股息 {reinvestRatioPct}% 再投入）推估之歷年複利軌跡
             </p>
           </div>
           <div className="flex items-center gap-2 font-mono text-xs">
@@ -617,7 +635,7 @@ export const TargetModelTab: React.FC<TargetModelTabProps> = ({
               <tr>
                 <th className="py-3 px-4">年度</th>
                 <th className="py-3 px-4">年初張數</th>
-                <th className="py-3 px-4">月加碼張數</th>
+                <th className="py-3 px-4">一次性加碼張數</th>
                 <th className="py-3 px-4">股息再買回張數</th>
                 <th className="py-3 px-4">年末總張數 (股數)</th>
                 <th className="py-3 px-4">當年度實收股利</th>
