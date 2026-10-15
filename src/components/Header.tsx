@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendingUp, BookOpen, Layers, History, Sparkles, Scale, Eye, EyeOff } from 'lucide-react';
+import { Target, TrendingUp, Layers, History, Sparkles, Scale, Eye, EyeOff } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -27,7 +27,6 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'portfolio', label: '持股與快照', icon: Layers },
     { id: 'dividends', label: '股利入帳與二代健保', icon: Sparkles },
     { id: 'transactions', label: '交易與再投入明細', icon: History },
-    { id: 'notes', label: '財商架構筆記庫', icon: BookOpen },
   ];
 
   return (

@@ -6,7 +6,6 @@ import { IntelligenceTab } from './components/IntelligenceTab';
 import { PortfolioTab } from './components/PortfolioTab';
 import { DividendsTab } from './components/DividendsTab';
 import { TransactionsTab } from './components/TransactionsTab';
-import { NotesTab } from './components/NotesTab';
 import { SnapshotExportModal } from './components/SnapshotExportModal';
 import { 
   INITIAL_HOLDINGS, 
@@ -17,7 +16,7 @@ import {
 } from './data/initialData';
 import { fetchSignalsFeed } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
-import { Holding, DividendRecord, Transaction, PortfolioSnapshot, ArchNote, IntelligenceSignal } from './types/portfolio';
+import { Holding, DividendRecord, Transaction, PortfolioSnapshot, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
@@ -47,12 +46,6 @@ const AppContent: React.FC = () => {
   const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>(() => {
     const saved = localStorage.getItem('inv_snapshots');
     return saved ? JSON.parse(saved) : INITIAL_SNAPSHOTS;
-  });
-
-  // Notes state
-  const [notes, setNotes] = useState<ArchNote[]>(() => {
-    const saved = localStorage.getItem('inv_notes');
-    return saved ? JSON.parse(saved) : [INITIAL_ARCH_NOTE];
   });
 
   // Intelligence Signals state
@@ -158,10 +151,6 @@ const AppContent: React.FC = () => {
   }, [snapshots]);
 
   useEffect(() => {
-    localStorage.setItem('inv_notes', JSON.stringify(notes));
-  }, [notes]);
-
-  useEffect(() => {
     localStorage.setItem('inv_intelligence_signals', JSON.stringify(signals));
   }, [signals]);
 
@@ -236,14 +225,6 @@ const AppContent: React.FC = () => {
     );
   };
 
-  const handleUpdateNote = (updated: ArchNote) => {
-    setNotes(notes.map((n) => (n.id === updated.id ? updated : n)));
-  };
-
-  const handleAddNote = (newNote: ArchNote) => {
-    setNotes([newNote, ...notes]);
-  };
-
   const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
     setExternalScenario({ dividendPerShare, label });
     setActiveTab('target-model');
@@ -297,7 +278,7 @@ const AppContent: React.FC = () => {
         {activeTab === 'target-model' && (
           <TargetModelTab
             holdings={holdings}
-            archNote={notes[0] || INITIAL_ARCH_NOTE}
+            archNote={INITIAL_ARCH_NOTE}
             externalScenario={externalScenario}
             onClearExternalScenario={() => setExternalScenario(null)}
           />
@@ -344,14 +325,6 @@ const AppContent: React.FC = () => {
             transactions={transactions}
             holding={mainHolding}
             onAddTransaction={handleAddTransaction}
-          />
-        )}
-
-        {activeTab === 'notes' && (
-          <NotesTab
-            notes={notes}
-            onUpdateNote={handleUpdateNote}
-            onAddNote={handleAddNote}
           />
         )}
       </main>
