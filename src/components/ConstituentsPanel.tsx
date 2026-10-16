@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchConstituentsFeed, ConstituentsFeed } from '../services/constituentsFeedService';
 
-/** 00882 成分股股利表（讀 Drive 管理目錄的資料庫 Sheet） */
+/** 00882 成分股股利表（讀 Drive 成分股股利資料庫資料夾的 Sheet） */
 export const ConstituentsPanel: React.FC = () => {
   const [feed, setFeed] = useState<ConstituentsFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export const ConstituentsPanel: React.FC = () => {
         <h3 className="text-lg font-bold text-slate-100">成分股股利表（自下而上）</h3>
         {feed && <span className="text-xs text-slate-400 font-mono">更新 {s.asOf}｜持股資料日 {s.holdingsAsOf}</span>}
       </div>
-      {error && <p className="text-sm text-amber-400">{error}。請確認 Portfolio_00882 下的「管理目錄」資料夾為公開連結。</p>}
+      {error && <p className="text-sm text-amber-400">{error}。請確認 Portfolio_00882 下的「成分股股利資料庫」資料夾為公開連結。</p>}
       {!feed && !error && <p className="text-sm text-slate-400">讀取中…</p>}
       {feed && (
         <>
