@@ -7,14 +7,13 @@ import {
   ArrowUpRight, 
   ShieldCheck, 
   ChevronRight, 
-  FileText, 
   Sparkles,
   ArrowRight,
   Calendar,
   RefreshCw,
   CheckCircle2
 } from 'lucide-react';
-import { Holding, DividendRecord, PortfolioSnapshot } from '../types/portfolio';
+import { Holding, DividendRecord } from '../types/portfolio';
 import { 
   calculateGoalStats, 
   calculateMarketValue, 
@@ -30,18 +29,14 @@ import { usePrivacy } from '../context/PrivacyContext';
 interface OverviewTabProps {
   holdings: Holding[];
   dividends: DividendRecord[];
-  latestSnapshot: PortfolioSnapshot;
   onNavigateTab: (tab: string) => void;
-  onOpenNewSnapshot: () => void;
   onUpdateHolding: (holding: Holding) => void;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({
   holdings,
   dividends,
-  latestSnapshot,
   onNavigateTab,
-  onOpenNewSnapshot,
   onUpdateHolding,
 }) => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
@@ -115,13 +110,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             >
               <span>股利模型與複利試算</span>
               <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onOpenNewSnapshot}
-              className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition cursor-pointer"
-            >
-              <FileText className="w-4 h-4 text-teal-400" />
-              <span>產出持股快照</span>
             </button>
           </div>
         </div>

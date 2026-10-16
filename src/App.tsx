@@ -4,17 +4,16 @@ import { OverviewTab } from './components/OverviewTab';
 import { TargetModelTab } from './components/TargetModelTab';
 import { IntelligenceTab } from './components/IntelligenceTab';
 import { DividendsTab } from './components/DividendsTab';
-import { SnapshotExportModal } from './components/SnapshotExportModal';
 import { 
   INITIAL_HOLDINGS, 
   INITIAL_DIVIDENDS, 
   INITIAL_TRANSACTIONS, 
-  INITIAL_SNAPSHOTS, 
+  
   INITIAL_ARCH_NOTE 
 } from './data/initialData';
 import { fetchSignalsFeed } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
-import { Holding, DividendRecord, Transaction, PortfolioSnapshot, IntelligenceSignal } from './types/portfolio';
+import { Holding, DividendRecord, Transaction, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
@@ -38,12 +37,6 @@ const AppContent: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('inv_transactions');
     return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
-
-  // Snapshots state
-  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>(() => {
-    const saved = localStorage.getItem('inv_snapshots');
-    return saved ? JSON.parse(saved) : INITIAL_SNAPSHOTS;
   });
 
   // Intelligence Signals state
@@ -126,7 +119,6 @@ const AppContent: React.FC = () => {
   } | null>(null);
 
   // Modals state
-  const [isSnapshotExportOpen, setIsSnapshotExportOpen] = useState(false);
 
   // Privacy Mask from Context
   const { isPrivacyMaskActive, togglePrivacyMask } = usePrivacy();
@@ -143,10 +135,6 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('inv_transactions', JSON.stringify(transactions));
   }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem('inv_snapshots', JSON.stringify(snapshots));
-  }, [snapshots]);
 
   useEffect(() => {
     localStorage.setItem('inv_intelligence_signals', JSON.stringify(signals));
@@ -266,9 +254,7 @@ const AppContent: React.FC = () => {
           <OverviewTab
             holdings={holdings}
             dividends={dividends}
-            latestSnapshot={snapshots[0]}
             onNavigateTab={setActiveTab}
-            onOpenNewSnapshot={() => setIsSnapshotExportOpen(true)}
             onUpdateHolding={handleUpdateHolding}
           />
         )}
@@ -312,13 +298,6 @@ const AppContent: React.FC = () => {
 
       </main>
 
-      {/* Snapshot Export Modal */}
-      <SnapshotExportModal
-        isOpen={isSnapshotExportOpen}
-        onClose={() => setIsSnapshotExportOpen(false)}
-        holdings={holdings}
-        snapshot={snapshots[0]}
-      />
     </div>
   );
 };
