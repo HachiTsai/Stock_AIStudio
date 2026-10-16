@@ -286,13 +286,13 @@ const AppContent: React.FC = () => {
 
         {portfolioFeedError && ['overview', 'portfolio', 'transactions'].includes(activeTab) && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {portfolioFeedError}。目前顯示的是本機資料；請確認「持股快照與交易紀錄」資料夾為公開連結後重新整理。
+            {portfolioFeedError}。目前顯示的是本機資料；請確認 Portfolio_00882 下的「持股快照與交易紀錄」資料夾為公開連結後重新整理。
           </div>
         )}
 
         {activeTab === 'intelligence' && signalsFeedError && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {signalsFeedError}。目前顯示的是本機快取；請確認「情報與趨勢」資料夾為公開連結後重新整理。
+            {signalsFeedError}。目前顯示的是本機快取；請確認 Portfolio_00882 下的「情報與趨勢」資料夾為公開連結後重新整理。
           </div>
         )}
 

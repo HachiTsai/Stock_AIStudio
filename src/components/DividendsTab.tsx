@@ -3,6 +3,7 @@ import { Sparkles, AlertCircle, Plus, Calendar, ShieldCheck, CheckCircle2 } from
 import { DividendRecord } from '../types/portfolio';
 import { formatTWD } from '../utils/calculations';
 import { usePrivacy } from '../context/PrivacyContext';
+import { ConstituentsPanel } from './ConstituentsPanel';
 
 interface DividendsTabProps {
   dividends: DividendRecord[];
@@ -293,6 +294,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
           </table>
         </div>
       </div>
+      <ConstituentsPanel />
     </div>
   );
 };

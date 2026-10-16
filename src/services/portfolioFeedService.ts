@@ -1,7 +1,7 @@
 import { Holding, Transaction } from '../types/portfolio';
 import { parseCsv } from './signalsFeedService';
 
-// Drive: Project_財商工程/持股快照與交易紀錄/（資料夾已設為知道連結者可檢視，免登入）
+// Drive: Project_財商工程/Portfolio_00882/持股快照與交易紀錄/（資料夾已設為知道連結者可檢視，免登入）
 // 兩份 Sheet 由排程依 Investment_Tracker_Core 唯讀重建；APP 只讀不寫。
 export const HOLDINGS_SHEET_ID = '1CWLwi1tsQoWaEYm0IOK9aH7NEkENgd71sbz6Y_lpRVI';
 export const TRANSACTIONS_SHEET_ID = '1yFr6OSW6LKWm5wdoc-QoJFXyUotYEd8_YEl_qR-24ks';

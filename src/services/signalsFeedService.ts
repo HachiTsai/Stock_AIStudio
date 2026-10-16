@@ -1,6 +1,6 @@
 import { IntelligenceSignal, SignalDimension, SignalDirection, SignalSourceType } from '../types/portfolio';
 
-// Drive: Project_財商工程/情報與趨勢/情報資料庫（資料夾已設為知道連結者可檢視，免登入）
+// Drive: Project_財商工程/Portfolio_00882/情報與趨勢/情報資料庫（資料夾已設為知道連結者可檢視，免登入）
 export const SIGNALS_SHEET_ID = '1BF2xvF0cmyODdN0nXR8QHbOTC3ikqswvSwBboY1cGQo';
 export const SIGNALS_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SIGNALS_SHEET_ID}/edit`;
 
