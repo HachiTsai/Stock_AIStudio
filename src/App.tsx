@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { OverviewTab } from './components/OverviewTab';
-import { TargetModelTab } from './components/TargetModelTab';
 import { IntelligenceTab } from './components/IntelligenceTab';
 import { DividendsTab } from './components/DividendsTab';
 import { 
   INITIAL_HOLDINGS, 
   INITIAL_DIVIDENDS, 
-  INITIAL_TRANSACTIONS, 
-  
-  INITIAL_ARCH_NOTE 
+  INITIAL_TRANSACTIONS,
 } from './data/initialData';
 import { fetchSignalsFeed } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
@@ -213,7 +210,7 @@ const AppContent: React.FC = () => {
 
   const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
     setExternalScenario({ dividendPerShare, label });
-    setActiveTab('target-model');
+    setActiveTab('dividends');
   };
 
   return (
@@ -259,14 +256,6 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {activeTab === 'target-model' && (
-          <TargetModelTab
-            holdings={holdings}
-            archNote={INITIAL_ARCH_NOTE}
-            externalScenario={externalScenario}
-            onClearExternalScenario={() => setExternalScenario(null)}
-          />
-        )}
 
         {portfolioFeedError && activeTab === 'overview' && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -293,6 +282,9 @@ const AppContent: React.FC = () => {
           <DividendsTab
             dividends={dividends}
             onAddDividend={handleAddDividend}
+            holding={mainHolding}
+            externalScenario={externalScenario}
+            onClearExternalScenario={() => setExternalScenario(null)}
           />
         )}
 
