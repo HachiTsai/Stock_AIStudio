@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { Sparkles, AlertCircle, Plus, Calendar, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { DividendRecord } from '../types/portfolio';
+import { DividendRecord, Holding } from '../types/portfolio';
 import { formatTWD } from '../utils/calculations';
 import { usePrivacy } from '../context/PrivacyContext';
 import { ConstituentsPanel } from './ConstituentsPanel';
+import { DividendPlanner } from './DividendPlanner';
 
 interface DividendsTabProps {
+  holding: Holding | null;
+  externalScenario?: { dividendPerShare: number; label: string } | null;
+  onClearExternalScenario?: () => void;
   dividends: DividendRecord[];
   onAddDividend: (record: DividendRecord) => void;
 }
 
-export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDividend }) => {
+export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDividend, holding, externalScenario, onClearExternalScenario }) => {
   const { isPrivacyMaskActive, maskTWD } = usePrivacy();
   const [showAddForm, setShowAddForm] = useState(false);
   const [exDate, setExDate] = useState('2027-01-16');
@@ -55,6 +59,12 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
+      <DividendPlanner
+        holding={holding}
+        externalScenario={externalScenario}
+        onClearExternalScenario={onClearExternalScenario}
+      />
+
       {/* Header and Summary stats */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">

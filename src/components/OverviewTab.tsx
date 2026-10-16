@@ -105,7 +105,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <span>最新報價</span>
             </button>
             <button
-              onClick={() => onNavigateTab('target-model')}
+              onClick={() => onNavigateTab('dividends')}
               className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-600/25 transition cursor-pointer"
             >
               <span>股利模型與複利試算</span>
