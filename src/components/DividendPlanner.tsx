@@ -9,8 +9,7 @@ import {
   MAX_YEARS,
   PlanParams,
   simulatePlan,
-  priceSteps,
-  divSteps,
+  currentMonth,
   round2,
 } from '../utils/dividendPlan';
 
@@ -20,7 +19,7 @@ interface DividendPlannerProps {
   onClearExternalScenario?: () => void;
 }
 
-/** 股利達標試算：四個參數 → 3D 曲面與情境矩陣，兩邊共用 simulatePlan 並雙向同步 */
+/** 股利達標試算：參數 → 摘要與 3D 曲面，共用 simulatePlan；點 3D 曲面可套用股價與配息 */
 export const DividendPlanner: React.FC<DividendPlannerProps> = ({
   holding,
   externalScenario,
@@ -35,7 +34,7 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
   const [divPerShare, setDivPerShare] = useState(baseDiv);
   const [reinvestPct, setReinvestPct] = useState(100);
   const [lumpSumTwd, setLumpSumTwd] = useState(0);
-  const [hoverCell, setHoverCell] = useState<string | null>(null);
+  const [lumpSumMonth, setLumpSumMonth] = useState(currentMonth());
   const [centerPrice, setCenterPrice] = useState(basePrice);
   const [quoteInfo, setQuoteInfo] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -65,8 +64,8 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
   }, [externalScenario]);
 
   const params: PlanParams = useMemo(
-    () => ({ shares, price, divPerShare, reinvestPct, lumpSumTwd, target: TARGET_ANNUAL_DIVIDEND }),
-    [shares, price, divPerShare, reinvestPct, lumpSumTwd],
+    () => ({ shares, price, divPerShare, reinvestPct, lumpSumTwd, lumpSumMonth, target: TARGET_ANNUAL_DIVIDEND }),
+    [shares, price, divPerShare, reinvestPct, lumpSumTwd, lumpSumMonth],
   );
   const result = simulatePlan(params);
 
@@ -81,11 +80,9 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
     setQuoteInfo(null);
     setReinvestPct(100);
     setLumpSumTwd(0);
+    setLumpSumMonth(currentMonth());
     onClearExternalScenario?.();
   };
-
-  const prices = priceSteps(price);
-  const divs = divSteps(divPerShare);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
@@ -127,23 +124,11 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
         <label className="space-y-1">
           <span className="text-slate-400">股價（TWD）</span>
-          <input
-            type="number"
-            step="0.01"
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value) || 0)}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono"
-          />
+          <NumInput value={price} onChange={setPrice} step="0.01" className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono" />
         </label>
         <label className="space-y-1">
           <span className="text-slate-400">每股年配息（TWD）</span>
-          <input
-            type="number"
-            step="0.01"
-            value={divPerShare}
-            onChange={(e) => setDivPerShare(Number(e.target.value) || 0)}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono"
-          />
+          <NumInput value={divPerShare} onChange={setDivPerShare} step="0.01" className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono" />
         </label>
         <label className="space-y-1">
           <span className="text-slate-400">股息再投入比例：{reinvestPct}%</span>
@@ -157,16 +142,29 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
             className="w-full accent-emerald-500 mt-2"
           />
         </label>
-        <label className="space-y-1">
-          <span className="text-slate-400">現在一次加碼（TWD）</span>
-          <input
-            type="number"
-            step="100000"
-            value={lumpSumTwd}
-            onChange={(e) => setLumpSumTwd(Math.max(0, Number(e.target.value) || 0))}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono"
-          />
-        </label>
+        <div className="space-y-1">
+          <span className="text-slate-400">一次加碼（TWD）與買進年月</span>
+          <div className="flex gap-2">
+            <NumInput
+              value={lumpSumTwd}
+              onChange={(v) => setLumpSumTwd(Math.max(0, v))}
+              step="100000"
+              className="w-full min-w-0 px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono"
+            />
+            <input
+              type="month"
+              value={lumpSumMonth}
+              min={currentMonth()}
+              onChange={(e) => setLumpSumMonth(e.target.value)}
+              className="px-2 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono [color-scheme:dark]"
+            />
+          </div>
+          {lumpSumTwd > 0 && price > 0 && (
+            <span className="block text-[11px] text-slate-500">
+              約可買 {isPrivacyMaskActive ? '•••' : Math.floor(lumpSumTwd / price / 1000)} 張（以上方股價計），{lumpSumMonth} 買進
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 結果摘要 */}
@@ -175,7 +173,7 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
           ['殖利率', `${result.yieldPct.toFixed(2)}%`],
           ['現在年實收', `${maskTWD(result.annualNetNow)}`],
           ['距目標缺口', result.gapNow === 0 ? '已達標' : `${maskTWD(result.gapNow)}（${isPrivacyMaskActive ? '•••' : result.lotsNeededNow} 張）`],
-          ['達標所需時間', result.yearsToTarget === null ? `> ${MAX_YEARS} 年` : `約 ${result.yearsToTarget} 年`],
+          ['達標所需時間', result.yearsToTarget === null ? `> ${MAX_YEARS} 年` : `約 ${result.yearsToTarget} 年（${result.reachMonth}）`],
         ].map(([k, v]) => (
           <div key={k} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
             <div className="text-slate-400">{k}</div>
@@ -186,64 +184,35 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
 
       <Dynamic3DChart params={params} centerPrice={centerPrice} centerDiv={baseDiv} onPick={pick} />
 
-      {/* 情境矩陣：以目前設定為中心，點格子套用，3D 黃點同步移動 */}
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-sm font-bold text-slate-100">情境矩陣（股價 × 配息）</h3>
-          <span className="text-[11px] text-slate-500">每格：殖利率／達標年數／現在缺幾張。點格子套用，3D 黃點跟著移動。</span>
-        </div>
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full text-center text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 font-mono border-b border-slate-800">
-              <tr>
-                <th className="py-2.5 px-3 text-left">股價＼配息</th>
-                {divs.map((d) => (
-                  <th key={d} className={`py-2.5 px-3 ${d === divPerShare ? 'text-amber-400' : ''}`}>
-                    {d.toFixed(2)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80">
-              {prices.map((p) => (
-                <tr key={p} className="font-mono">
-                  <td className={`py-2.5 px-3 text-left font-bold ${p === price ? 'text-amber-400' : 'text-teal-300'}`}>
-                    {p.toFixed(2)}
-                  </td>
-                  {divs.map((d) => {
-                    const r = simulatePlan({ ...params, price: p, divPerShare: d });
-                    const key = `${p}-${d}`;
-                    const isCurrent = p === price && d === divPerShare;
-                    return (
-                      <td
-                        key={key}
-                        onClick={() => pick(p, d)}
-                        onMouseEnter={() => setHoverCell(key)}
-                        onMouseLeave={() => setHoverCell(null)}
-                        className={`py-2 px-2 cursor-pointer transition ${
-                          isCurrent
-                            ? 'bg-amber-500/15 outline outline-2 outline-amber-400 font-bold'
-                            : hoverCell === key
-                            ? 'bg-slate-800/70'
-                            : ''
-                        }`}
-                      >
-                        <div className="text-slate-100">{r.yieldPct.toFixed(2)}%</div>
-                        <div className={r.yearsToTarget === null ? 'text-rose-400' : 'text-emerald-400'}>
-                          {r.yearsToTarget === null ? `>${MAX_YEARS}年` : `${r.yearsToTarget}年`}
-                        </div>
-                        <div className="text-[10px] text-slate-500">
-                          {r.gapNow === 0 ? '達標' : isPrivacyMaskActive ? '缺 ••• 張' : `缺 ${r.lotsNeededNow} 張`}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
+  );
+};
+
+/** 數字輸入框：用字串保存輸入中的內容，避免開頭的 0 卡住或清空後跳回 0 */
+const NumInput: React.FC<{ value: number; onChange: (v: number) => void; step?: string; className?: string }> = ({
+  value,
+  onChange,
+  step,
+  className,
+}) => {
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    // 外部改值（最新報價、回到預設、點 3D）時同步；輸入中數值相同則不覆蓋
+    if (Number(text) !== value) setText(String(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      step={step}
+      value={text}
+      onChange={(e) => {
+        const t = e.target.value.replace(/[^0-9.]/g, '').replace(/^0+(?=\d)/, '');
+        setText(t);
+        onChange(Number(t) || 0);
+      }}
+      className={className}
+    />
   );
 };
