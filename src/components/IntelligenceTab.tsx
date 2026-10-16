@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Scale,
   ArrowRight,
@@ -15,6 +15,47 @@ import {
   SignalDirection,
 } from '../types/portfolio';
 import { synthesizeObjectiveTrends } from '../utils/intelligenceEngine';
+import { fetchScoreHistory, ScorePoint } from '../services/signalsFeedService';
+
+const ScoreTrend: React.FC<{ points: ScorePoint[] }> = ({ points }) => {
+  if (points.length < 2) return null;
+  const W = 320;
+  const H = 64;
+  const x = (i: number) => (i / (points.length - 1)) * W;
+  const y = (v: number) => H - (Math.max(0, Math.min(100, v)) / 100) * H;
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.netScore).toFixed(1)}`).join(' ');
+  const last = points[points.length - 1];
+  const weekAgo = new Date(last.date);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const base = [...points].reverse().find((p) => new Date(p.date) <= weekAgo) ?? points[0];
+  const delta = last.netScore - base.netScore;
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-3 border-t border-slate-800">
+      <div className="shrink-0">
+        <div className="text-[11px] text-slate-400">綜合趨勢分數</div>
+        <div className="flex items-baseline gap-2 font-mono">
+          <span className="text-2xl font-bold text-emerald-400">{last.netScore}</span>
+          <span className="text-[11px] text-slate-500">/ 100</span>
+          <span
+            className={`text-xs font-bold ${
+              delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-slate-400'
+            }`}
+          >
+            {delta > 0 ? '+' : ''}
+            {delta} 近一週
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16" preserveAspectRatio="none" role="img" aria-label="綜合趨勢分數折線">
+        <line x1="0" x2={W} y1={y(50)} y2={y(50)} stroke="currentColor" className="text-slate-700" strokeDasharray="3 3" />
+        <path d={path} fill="none" stroke="currentColor" className="text-emerald-400" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="text-[11px] text-slate-500 font-mono shrink-0">
+        {points[0].date} ~ {last.date}
+      </div>
+    </div>
+  );
+};
 
 interface IntelligenceTabProps {
   signals: IntelligenceSignal[];
@@ -30,6 +71,16 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   // Filter state for signal list
   const [filterDimension, setFilterDimension] = useState<SignalDimension | 'all'>('all');
   const [filterDirection, setFilterDirection] = useState<SignalDirection | 'all'>('all');
+  const [history, setHistory] = useState<ScorePoint[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchScoreHistory()
+      .then((h) => !cancelled && setHistory(h))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [selected, setSelected] = useState<IntelligenceSignal | null>(null);
 
   // Compute live objective trend synthesis
@@ -140,6 +191,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               style={{ width: `${synthesis.bullRatioPct}%` }}
             />
           </div>
+
+          <ScoreTrend points={history} />
 
           {/* 3 Core Dimension Scores */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3">
