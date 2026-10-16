@@ -7,6 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  X,
 } from 'lucide-react';
 import {
   IntelligenceSignal,
@@ -29,6 +30,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   // Filter state for signal list
   const [filterDimension, setFilterDimension] = useState<SignalDimension | 'all'>('all');
   const [filterDirection, setFilterDirection] = useState<SignalDirection | 'all'>('all');
+  const [selected, setSelected] = useState<IntelligenceSignal | null>(null);
 
   // Compute live objective trend synthesis
   const synthesis = synthesizeObjectiveTrends(signals, baseDividendPerShare);
@@ -60,6 +62,35 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       </span>
     );
   };
+
+  const getDirectionBadge = (sig: IntelligenceSignal) => {
+    if (sig.direction === 'bullish') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+          <TrendingUp className="w-3 h-3" />
+          <span>正向 {sig.weight}/5</span>
+        </span>
+      );
+    }
+    if (sig.direction === 'bearish') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0">
+          <TrendingDown className="w-3 h-3" />
+          <span>風險 {sig.weight}/5</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 shrink-0">
+        <Minus className="w-3 h-3" />
+        <span>中性 {sig.weight}/5</span>
+      </span>
+    );
+  };
+
+  const shiftColor = (v: number) =>
+    v > 0 ? 'text-emerald-400' : v < 0 ? 'text-rose-400' : 'text-slate-300';
+  const formatShift = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(2)} TWD`;
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -248,105 +279,155 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-2.5">
           {filteredSignals.map((sig) => (
-            <div
+            <button
               key={sig.id}
-              className={`bg-slate-900 border rounded-2xl p-5 sm:p-6 space-y-4 transition ${
+              type="button"
+              onClick={() => setSelected(sig)}
+              className={`w-full text-left bg-slate-900 border rounded-xl px-4 py-3 space-y-2 transition cursor-pointer ${
                 sig.direction === 'bullish'
-                  ? 'border-emerald-500/25 hover:border-emerald-500/40'
+                  ? 'border-emerald-500/25 hover:border-emerald-500/50'
                   : sig.direction === 'bearish'
-                  ? 'border-rose-500/25 hover:border-rose-500/40'
-                  : 'border-slate-800'
+                  ? 'border-rose-500/25 hover:border-rose-500/50'
+                  : 'border-slate-800 hover:border-slate-600'
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
-                <div className="flex flex-wrap items-center gap-2">
-                  {sig.direction === 'bullish' ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      <span>正向支撐 (權重 {sig.weight}/5)</span>
-                    </span>
-                  ) : sig.direction === 'bearish' ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                      <TrendingDown className="w-3.5 h-3.5" />
-                      <span>潛在風險 (權重 {sig.weight}/5)</span>
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300">
-                      <Minus className="w-3.5 h-3.5" />
-                      <span>中性事實 (權重 {sig.weight}/5)</span>
-                    </span>
-                  )}
-
-                  {getDimensionBadge(sig.dimension)}
-
-                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
-                    {sig.ticker}
+              <div className="flex items-center gap-2">
+                {getDirectionBadge(sig)}
+                <h3 className="text-sm font-bold text-slate-100 flex-1 min-w-0 truncate">
+                  {sig.title}
+                </h3>
+                <span className="font-mono text-[11px] text-slate-500 shrink-0">{sig.date}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {sig.extractedMetrics.map((m, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[11px]"
+                  >
+                    <span className="text-slate-400">{m.label} </span>
+                    <span className="font-mono font-bold text-teal-300">{m.value}</span>
                   </span>
-                  <span className="font-mono text-xs text-slate-500">{sig.date}</span>
-                </div>
+                ))}
+                <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[11px]">
+                  <span className="text-slate-400">配息影響 </span>
+                  <span className={`font-mono font-bold ${shiftColor(sig.impliedDividendShift)}`}>
+                    {formatShift(sig.impliedDividendShift)}
+                  </span>
+                </span>
               </div>
-
-              <div>
-                <h3 className="text-base font-bold text-slate-100">{sig.title}</h3>
-                <p className="text-xs text-slate-400 mt-1">{sig.objectiveReasoning}</p>
-              </div>
-
-              {/* Extracted Hard Facts & Quantitative Metrics */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-                <div className="lg:col-span-2 space-y-1.5">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    客觀事實與硬數據 (Hard Facts)
-                  </div>
-                  <ul className="space-y-1 text-xs text-slate-200">
-                    {sig.hardFacts.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-emerald-400 font-mono">•</span>
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="space-y-2 border-t lg:border-t-0 lg:border-l border-slate-800 pt-3 lg:pt-0 lg:pl-4">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    關鍵量化指標 & 配息影響
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {sig.extractedMetrics.map((m, i) => (
-                      <div
-                        key={i}
-                        className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs"
-                      >
-                        <span className="text-slate-400 text-[11px] block">{m.label}</span>
-                        <span className="font-mono font-bold text-teal-300">{m.value}</span>
-                      </div>
-                    ))}
-                    <div className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
-                      <span className="text-slate-400 text-[11px] block">配息邊際影響</span>
-                      <span
-                        className={`font-mono font-bold ${
-                          sig.impliedDividendShift > 0
-                            ? 'text-emerald-400'
-                            : sig.impliedDividendShift < 0
-                            ? 'text-rose-400'
-                            : 'text-slate-300'
-                        }`}
-                      >
-                        {sig.impliedDividendShift > 0
-                          ? `+${sig.impliedDividendShift.toFixed(2)}`
-                          : sig.impliedDividendShift.toFixed(2)}{' '}
-                        TWD
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {getDirectionBadge(selected)}
+                  {getDimensionBadge(selected.dimension)}
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                    {selected.ticker}
+                  </span>
+                  <span className="font-mono text-xs text-slate-500">{selected.date}</span>
+                </div>
+                <h3 className="text-base font-bold text-slate-100">{selected.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                aria-label="關閉"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {selected.extractedMetrics.map((m, i) => (
+                <div key={i} className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                  <span className="text-slate-400 text-[11px] block">{m.label}</span>
+                  <span className="font-mono font-bold text-teal-300">{m.value}</span>
+                </div>
+              ))}
+              <div className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                <span className="text-slate-400 text-[11px] block">配息邊際影響</span>
+                <span className={`font-mono font-bold ${shiftColor(selected.impliedDividendShift)}`}>
+                  {formatShift(selected.impliedDividendShift)}
+                </span>
+              </div>
+            </div>
+
+            {selected.hardFacts.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  客觀事實與硬數據
+                </div>
+                <ul className="space-y-1 text-xs text-slate-200">
+                  {selected.hardFacts.map((f, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-emerald-400 font-mono">•</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {selected.objectiveReasoning && (
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  客觀推論
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">{selected.objectiveReasoning}</p>
+              </div>
+            )}
+
+            {selected.rawContent && (
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  原文摘要
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">
+                  {selected.rawContent}
+                </p>
+              </div>
+            )}
+
+            {(selected.sourceUrl || selected.tags.length > 0) && (
+              <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-800 text-[11px]">
+                {selected.tags.map((t) => (
+                  <span key={t} className="px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                    {t}
+                  </span>
+                ))}
+                {selected.sourceUrl && (
+                  <a
+                    href={selected.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-teal-400 hover:underline ml-auto"
+                  >
+                    來源連結
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
