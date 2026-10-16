@@ -24,9 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'overview', label: '總覽概況', icon: TrendingUp },
     { id: 'target-model', label: '股利目標模型', icon: Target, badge: isPrivacyMaskActive ? '••%' : `${targetProgressPct.toFixed(0)}%` },
     { id: 'intelligence', label: '客觀趨勢情報中心', icon: Scale, badge: `${signalsCount}` },
-    { id: 'portfolio', label: '持股與快照', icon: Layers },
     { id: 'dividends', label: '股利入帳與二代健保', icon: Sparkles },
-    { id: 'transactions', label: '交易與再投入明細', icon: History },
   ];
 
   return (
