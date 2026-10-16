@@ -29,7 +29,7 @@ export const ConstituentsPanel: React.FC = () => {
         <>
           <p className="text-sm text-slate-300">
             每單位年配息能力（毛額推估）：<span className="font-mono text-emerald-400">{s.lfyUnitTwd}～{s.ttmUnitTwd}</span> TWD，
-            {feed.rows.length} 檔成分股，已公告 2026 中期股息 {s.has26} 檔。此為推估，不是官方配息。
+            {feed.rows.length} 檔成分股，已公告 2026 中期股息 {s.has26} 檔。
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">

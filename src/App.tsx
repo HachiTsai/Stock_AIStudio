@@ -12,7 +12,6 @@ import { fetchSignalsFeed } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
 import { Holding, DividendRecord, Transaction, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
-import { MODEL_DIV_PER_SHARE } from './utils/dividendPlan';
 import { EyeOff } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 
@@ -138,12 +137,8 @@ const AppContent: React.FC = () => {
     localStorage.setItem('inv_intelligence_signals', JSON.stringify(signals));
   }, [signals]);
 
-  // 年配息一律用股利目標模型的推估值（v6），不用去年實際配息，讓頁首、總覽與試算口徑一致
-  const modelHoldings = holdings.map((h) =>
-    h.ticker.includes('00882') ? { ...h, annualDividendPerShare: MODEL_DIV_PER_SHARE } : h,
-  );
-  const mainHolding = modelHoldings[0] || INITIAL_HOLDINGS[0];
-  const goalStats = calculateGoalStats(modelHoldings);
+  const mainHolding = holdings[0] || INITIAL_HOLDINGS[0];
+  const goalStats = calculateGoalStats(holdings);
 
   // Handlers
   const handleUpdateHolding = (updated: Holding) => {
@@ -254,7 +249,7 @@ const AppContent: React.FC = () => {
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
         {activeTab === 'overview' && (
           <OverviewTab
-            holdings={modelHoldings}
+            holdings={holdings}
             dividends={dividends}
             onNavigateTab={setActiveTab}
             onUpdateHolding={handleUpdateHolding}
