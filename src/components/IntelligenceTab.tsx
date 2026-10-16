@@ -17,6 +17,8 @@ import {
 import { synthesizeObjectiveTrends } from '../utils/intelligenceEngine';
 import { fetchScoreHistory, ScorePoint } from '../services/signalsFeedService';
 
+const PAGE_SIZE = 10;
+
 const ScoreTrend: React.FC<{ points: ScorePoint[] }> = ({ points }) => {
   if (points.length < 2) return null;
   const W = 320;
@@ -81,16 +83,22 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
       cancelled = true;
     };
   }, []);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selected, setSelected] = useState<IntelligenceSignal | null>(null);
 
   // Compute live objective trend synthesis
   const synthesis = synthesizeObjectiveTrends(signals, baseDividendPerShare);
 
-  const filteredSignals = signals.filter((s) => {
-    if (filterDimension !== 'all' && s.dimension !== filterDimension) return false;
-    if (filterDirection !== 'all' && s.direction !== filterDirection) return false;
-    return true;
-  });
+  // 最新到最舊（同日以 id 大者在前）
+  const filteredSignals = signals
+    .filter((s) => {
+      if (filterDimension !== 'all' && s.dimension !== filterDimension) return false;
+      if (filterDirection !== 'all' && s.direction !== filterDirection) return false;
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id, undefined, { numeric: true }));
+  const visibleSignals = filteredSignals.slice(0, visibleCount);
+  const hiddenCount = filteredSignals.length - visibleSignals.length;
 
   const getDimensionBadge = (dim: SignalDimension) => {
     if (dim === 'dividend_sustainability') {
@@ -310,7 +318,10 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <select
               value={filterDimension}
-              onChange={(e) => setFilterDimension(e.target.value as any)}
+              onChange={(e) => {
+                setFilterDimension(e.target.value as any);
+                setVisibleCount(PAGE_SIZE);
+              }}
               className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300"
             >
               <option value="all">所有維度</option>
@@ -321,7 +332,10 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
 
             <select
               value={filterDirection}
-              onChange={(e) => setFilterDirection(e.target.value as any)}
+              onChange={(e) => {
+                setFilterDirection(e.target.value as any);
+                setVisibleCount(PAGE_SIZE);
+              }}
               className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300"
             >
               <option value="all">所有方向</option>
@@ -333,7 +347,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
         </div>
 
         <div className="grid grid-cols-1 gap-2.5">
-          {filteredSignals.map((sig) => (
+          {visibleSignals.map((sig) => (
             <button
               key={sig.id}
               type="button"
@@ -372,6 +386,15 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               </div>
             </button>
           ))}
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+              className="w-full py-2 rounded-xl border border-slate-800 bg-slate-900 hover:border-slate-600 text-xs text-slate-300 cursor-pointer"
+            >
+              顯示更多（還有 {hiddenCount} 筆）
+            </button>
+          )}
         </div>
       </div>
 
