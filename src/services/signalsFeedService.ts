@@ -100,3 +100,32 @@ export async function fetchSignalsFeed(): Promise<IntelligenceSignal[]> {
     .map((r) => rowToSignal(header, r))
     .filter((s): s is IntelligenceSignal => s !== null);
 }
+
+export interface ScorePoint {
+  date: string; // YYYY-MM-DD
+  netScore: number; // 0 ~ 100，正向權重 ÷ (正向＋風險權重)
+  bullWeight: number;
+  bearWeight: number;
+}
+
+const HISTORY_URL = `https://docs.google.com/spreadsheets/d/${SIGNALS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('評分歷史')}`;
+
+/** 免登入讀取「評分歷史」分頁（每個交易日一列，由風向日報寫入） */
+export async function fetchScoreHistory(): Promise<ScorePoint[]> {
+  const res = await fetch(HISTORY_URL);
+  if (!res.ok) throw new Error(`讀取評分歷史失敗 (${res.status})`);
+  const rows = parseCsv(await res.text());
+  if (rows.length < 2) return [];
+  const header = rows[0].map((h) => h.trim());
+  const idx = (name: string) => header.indexOf(name);
+  return rows
+    .slice(1)
+    .map((r) => ({
+      date: (r[idx('date')] ?? '').trim(),
+      netScore: Number(r[idx('netScore')]),
+      bullWeight: Number(r[idx('bullWeight')]),
+      bearWeight: Number(r[idx('bearWeight')]),
+    }))
+    .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.netScore))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
