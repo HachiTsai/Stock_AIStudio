@@ -1,5 +1,5 @@
-// 股利達標試算：3D 圖與情境矩陣共用同一套算法，確保同一組參數得到同一個答案。
-// 假設：股價、每股年配息在試算期間持平；00882 半年配一次（1 月、7 月）；
+// 股利達標試算：3D 圖與試算摘要共用同一套算法，確保同一組參數得到同一個答案。
+// 假設：股價、每股年配息在試算期間持平；00882 半年配一次（1 月、7 月）；一次加碼於指定年月買進；
 // 二代健保以實際觀察的有效扣除率 0.72% 估算；再投入以當時股價買進。以上皆為推估，不是事實。
 
 export const MODEL_DIV_PER_SHARE = 0.86; // 股利目標模型 v6（成分股股息 × 校準配發比 95%，2026-10-16）
@@ -11,8 +11,10 @@ export interface PlanParams {
   price: number; // 買進／再投入股價
   divPerShare: number; // 每股年配息
   reinvestPct: number; // 股息再投入比例 0–100
-  lumpSumTwd: number; // 現在一次加碼金額
+  lumpSumTwd: number; // 一次加碼金額
+  lumpSumMonth: string; // 加碼年月 YYYY-MM
   target: number; // 年股利目標（實收）
+  startMonth?: string; // 試算起點 YYYY-MM，預設本月
 }
 
 export interface PlanYear {
@@ -23,31 +25,50 @@ export interface PlanYear {
 
 export interface PlanResult {
   yieldPct: number;
-  annualNetNow: number; // 加碼後、第 0 年的年實收
+  annualNetNow: number; // 現有持股的年實收（不含未來加碼）
   gapNow: number;
   lotsNeededNow: number; // 不靠複利、一次補足缺口需要的張數
-  yearsToTarget: number | null; // 達標所需年數（半年精度），超過 MAX_YEARS 為 null
+  yearsToTarget: number | null; // 達標所需年數（月精度，取一位小數），超過 MAX_YEARS 為 null
+  reachMonth: string | null; // 達標年月
+  lumpOffsetMonths: number | null; // 加碼距起點幾個月（超出試算範圍為 null）
   trajectory: PlanYear[]; // 第 0～MAX_YEARS 年
 }
 
+export const currentMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+const toIndex = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number);
+  return y * 12 + (m - 1);
+};
+const fromIndex = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
+
+// 逐月模擬：00882 在 1 月、7 月配息（各半），配息當月依比例再投入；加碼在指定年月買進。
 export function simulatePlan(p: PlanParams): PlanResult {
   const netRate = 1 - NHI_EFFECTIVE_RATE;
   const annualNet = (s: number) => s * p.divPerShare * netRate;
-  let shares = p.shares + (p.price > 0 ? p.lumpSumTwd / p.price : 0);
+  const start = toIndex(p.startMonth || currentMonth());
+  const lumpOffset = p.lumpSumTwd > 0 && /^\d{4}-\d{2}$/.test(p.lumpSumMonth) ? toIndex(p.lumpSumMonth) - start : null;
+  const lumpShares = p.price > 0 ? p.lumpSumTwd / p.price : 0;
 
+  let shares = p.shares;
   const annualNetNow = annualNet(shares);
   const gapNow = Math.max(0, p.target - annualNetNow);
   const netPerShare = p.divPerShare * netRate;
   const lotsNeededNow = netPerShare > 0 ? Math.ceil(gapNow / netPerShare / 1000) : 0;
 
-  const trajectory: PlanYear[] = [{ year: 0, shares, annualNet: annualNetNow }];
-  let yearsToTarget: number | null = annualNetNow >= p.target ? 0 : null;
-
-  for (let half = 1; half <= MAX_YEARS * 2; half++) {
-    const payout = (shares * p.divPerShare * netRate) / 2;
-    if (p.price > 0) shares += (payout * (p.reinvestPct / 100)) / p.price;
-    if (yearsToTarget === null && annualNet(shares) >= p.target) yearsToTarget = half / 2;
-    if (half % 2 === 0) trajectory.push({ year: half / 2, shares, annualNet: annualNet(shares) });
+  const trajectory: PlanYear[] = [];
+  let reachOffset: number | null = null;
+  for (let k = 0; k <= MAX_YEARS * 12; k++) {
+    if (lumpOffset !== null && k === Math.max(0, lumpOffset)) shares += lumpShares;
+    const month = (start + k) % 12; // 0 = 1 月
+    if (k > 0 && (month === 0 || month === 6) && p.price > 0) {
+      const payout = (shares * p.divPerShare * netRate) / 2;
+      shares += (payout * (p.reinvestPct / 100)) / p.price;
+    }
+    if (reachOffset === null && annualNet(shares) >= p.target) reachOffset = k;
+    if (k % 12 === 0) trajectory.push({ year: k / 12, shares, annualNet: annualNet(shares) });
   }
 
   return {
@@ -55,23 +76,19 @@ export function simulatePlan(p: PlanParams): PlanResult {
     annualNetNow,
     gapNow,
     lotsNeededNow,
-    yearsToTarget,
+    yearsToTarget: reachOffset === null ? null : Math.round((reachOffset / 12) * 10) / 10,
+    reachMonth: reachOffset === null ? null : fromIndex(start + reachOffset),
+    lumpOffsetMonths: lumpOffset !== null && lumpOffset <= MAX_YEARS * 12 ? Math.max(0, lumpOffset) : null,
     trajectory,
   };
 }
 
-// 以目前值為中心產生情境格點，3D 曲面與矩陣共用同一個範圍。
+// 3D 曲面的股價／配息範圍，以中心值上下展開
 export function priceRange(center: number): [number, number] {
   return [round2(center * 0.75), round2(center * 1.25)];
 }
 export function divRange(center: number): [number, number] {
   return [round2(Math.max(0.1, center * 0.6)), round2(center * 1.4)];
-}
-export function priceSteps(center: number): number[] {
-  return [-0.1, -0.05, 0, 0.05, 0.1].map((k) => round2(center * (1 + k)));
-}
-export function divSteps(center: number): number[] {
-  return [-0.1, -0.05, 0, 0.05, 0.1].map((k) => round2(Math.max(0.05, center + k)));
 }
 
 export const round2 = (v: number) => Math.round(v * 100) / 100;

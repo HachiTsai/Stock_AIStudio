@@ -219,6 +219,17 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
       plane.position.y = -7 + (params.target / maxNet) * 14;
       group.add(plane);
       addMarker(pts[0].x, pts[0].y, pts[0].z);
+      // 加碼時點：紫色環標在軌跡上
+      const { lumpOffsetMonths } = simulatePlan(params);
+      if (lumpOffsetMonths !== null) {
+        const idx = Math.min(trajectory.length - 1, Math.ceil(lumpOffsetMonths / 12));
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.7, 0.12, 12, 32),
+          new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7e22ce }),
+        );
+        ring.position.copy(pts[idx]);
+        group.add(ring);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, params, pMin, pMax, dMin, dMax]);
@@ -368,7 +379,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
             <>
               <div className="text-slate-200 font-semibold">年實收隨時間的複利成長</div>
               <div>X 軸：第 0～{MAX_YEARS} 年；Z 軸：持股張數</div>
-              <div>綠色平面：年股利目標</div>
+              <div>綠色平面：年股利目標；紫環：一次加碼之後的第一年</div>
             </>
           )}
         </div>
@@ -377,7 +388,8 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
           <div className="text-amber-400 font-semibold font-sans">黃點：目前設定</div>
           <div>股價 {params.price.toFixed(2)}｜配息 {params.divPerShare.toFixed(2)}</div>
           <div>殖利率 {cur.yieldPct.toFixed(2)}%</div>
-          <div>{cur.yearsToTarget === null ? `${MAX_YEARS} 年內無法達標` : `達標約 ${cur.yearsToTarget} 年`}</div>
+          <div>{cur.yearsToTarget === null ? `${MAX_YEARS} 年內無法達標` : `達標約 ${cur.yearsToTarget} 年（${cur.reachMonth}）`}</div>
+          {params.lumpSumTwd > 0 && <div>加碼 {maskTWD(params.lumpSumTwd)}（{params.lumpSumMonth}）</div>}
           <div>現在年實收 {maskTWD(cur.annualNetNow)}</div>
         </div>
 
