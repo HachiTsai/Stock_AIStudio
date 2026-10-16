@@ -5,7 +5,6 @@ import { TARGET_ANNUAL_DIVIDEND } from '../utils/calculations';
 import { usePrivacy } from '../context/PrivacyContext';
 import { Dynamic3DChart } from './Dynamic3DChart';
 import {
-  MODEL_DIV_PER_SHARE,
   MAX_YEARS,
   PlanParams,
   simulatePlan,
@@ -28,7 +27,7 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
   const { isPrivacyMaskActive, maskTWD } = usePrivacy();
   const shares = holding?.shares ?? 300000;
   const basePrice = round2(holding?.currentPrice || 14.84);
-  const baseDiv = MODEL_DIV_PER_SHARE;
+  const baseDiv = round2(holding?.annualDividendPerShare || 1.0);
 
   const [price, setPrice] = useState(basePrice);
   const [divPerShare, setDivPerShare] = useState(baseDiv);
@@ -92,9 +91,6 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
             <Target className="w-5 h-5 text-emerald-400" />
             <span>股利達標試算</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            預設配息 {baseDiv.toFixed(2)} 為股利目標模型 v6 推估。假設股價與配息持平、半年配、二代健保約 0.72%；結果為推估，不是保證。
-          </p>
           {externalScenario && (
             <p className="text-xs text-amber-300 mt-1">已套用情報中心情境：{externalScenario.label}</p>
           )}
