@@ -21,7 +21,7 @@ export const ConstituentsPanel: React.FC = () => {
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-lg font-bold text-slate-100">成分股股利表（自下而上）</h3>
-        {feed && <span className="text-xs text-slate-400 font-mono">更新 {s.asOf}｜持股資料日 {s.holdingsAsOf}</span>}
+        {feed && <span className="text-xs text-slate-400 font-mono">最後更新 {s.asOf}</span>}
       </div>
       {error && <p className="text-sm text-amber-400">{error}。請確認 Portfolio_00882 下的「成分股股利資料庫」資料夾為公開連結。</p>}
       {!feed && !error && <p className="text-sm text-slate-400">讀取中…</p>}
