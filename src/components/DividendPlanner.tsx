@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Target, RotateCcw } from 'lucide-react';
+import { Target, RotateCcw, RefreshCw } from 'lucide-react';
 import { Holding } from '../types/portfolio';
 import { TARGET_ANNUAL_DIVIDEND } from '../utils/calculations';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -36,6 +36,29 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
   const [reinvestPct, setReinvestPct] = useState(100);
   const [lumpSumTwd, setLumpSumTwd] = useState(0);
   const [hoverCell, setHoverCell] = useState<string | null>(null);
+  const [centerPrice, setCenterPrice] = useState(basePrice);
+  const [quoteInfo, setQuoteInfo] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [isFetchingQuote, setIsFetchingQuote] = useState(false);
+
+  // 免費公開報價（後端 /api/market-quote，Yahoo Finance），帶入股價並以新價重設 3D 曲面中心
+  const fetchLatestQuote = async () => {
+    setIsFetchingQuote(true);
+    setQuoteError(null);
+    try {
+      const res = await fetch(`/api/market-quote?ticker=${encodeURIComponent(holding?.ticker || '00882')}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '抓取報價失敗');
+      const p = round2(data.price);
+      setPrice(p);
+      setCenterPrice(p);
+      setQuoteInfo(`最新報價 ${p.toFixed(2)}（${data.change >= 0 ? '+' : ''}${data.change}／${data.changePct}%），${data.date} ${data.time}，來源 ${data.source}`);
+    } catch (err: any) {
+      setQuoteError(err?.message || '抓取報價失敗');
+    } finally {
+      setIsFetchingQuote(false);
+    }
+  };
 
   useEffect(() => {
     if (externalScenario) setDivPerShare(round2(externalScenario.dividendPerShare));
@@ -53,7 +76,9 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
   };
   const reset = () => {
     setPrice(basePrice);
+    setCenterPrice(basePrice);
     setDivPerShare(baseDiv);
+    setQuoteInfo(null);
     setReinvestPct(100);
     setLumpSumTwd(0);
     onClearExternalScenario?.();
@@ -77,6 +102,15 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
             <p className="text-xs text-amber-300 mt-1">已套用情報中心情境：{externalScenario.label}</p>
           )}
         </div>
+        <div className="flex gap-2 shrink-0">
+        <button
+          onClick={fetchLatestQuote}
+          disabled={isFetchingQuote}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-60 text-xs text-white font-semibold cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isFetchingQuote ? 'animate-spin' : ''}`} />
+          <span>{isFetchingQuote ? '抓取中…' : '最新報價'}</span>
+        </button>
         <button
           onClick={reset}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 cursor-pointer shrink-0"
@@ -84,7 +118,10 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
           <RotateCcw className="w-3.5 h-3.5" />
           <span>回到預設</span>
         </button>
+        </div>
       </div>
+      {quoteInfo && <p className="text-xs text-teal-300 -mt-3">{quoteInfo}</p>}
+      {quoteError && <p className="text-xs text-rose-400 -mt-3">{quoteError}。可直接在股價欄手動輸入。</p>}
 
       {/* 四個參數 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
@@ -147,7 +184,7 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
         ))}
       </div>
 
-      <Dynamic3DChart params={params} centerPrice={basePrice} centerDiv={baseDiv} onPick={pick} />
+      <Dynamic3DChart params={params} centerPrice={centerPrice} centerDiv={baseDiv} onPick={pick} />
 
       {/* 情境矩陣：以目前設定為中心，點格子套用，3D 黃點同步移動 */}
       <div className="space-y-2">
