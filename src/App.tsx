@@ -3,9 +3,7 @@ import { Header } from './components/Header';
 import { OverviewTab } from './components/OverviewTab';
 import { TargetModelTab } from './components/TargetModelTab';
 import { IntelligenceTab } from './components/IntelligenceTab';
-import { PortfolioTab } from './components/PortfolioTab';
 import { DividendsTab } from './components/DividendsTab';
-import { TransactionsTab } from './components/TransactionsTab';
 import { SnapshotExportModal } from './components/SnapshotExportModal';
 import { 
   INITIAL_HOLDINGS, 
@@ -284,7 +282,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {portfolioFeedError && ['overview', 'portfolio', 'transactions'].includes(activeTab) && (
+        {portfolioFeedError && activeTab === 'overview' && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {portfolioFeedError}。目前顯示的是本機資料；請確認 Portfolio_00882 下的「持股快照與交易紀錄」資料夾為公開連結後重新整理。
           </div>
@@ -304,14 +302,6 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {activeTab === 'portfolio' && (
-          <PortfolioTab
-            holdings={holdings}
-            snapshots={snapshots}
-            onUpdateHolding={handleUpdateHolding}
-            onOpenNewSnapshot={() => setIsSnapshotExportOpen(true)}
-          />
-        )}
 
         {activeTab === 'dividends' && (
           <DividendsTab
@@ -320,13 +310,6 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {activeTab === 'transactions' && (
-          <TransactionsTab
-            transactions={transactions}
-            holding={mainHolding}
-            onAddTransaction={handleAddTransaction}
-          />
-        )}
       </main>
 
       {/* Snapshot Export Modal */}

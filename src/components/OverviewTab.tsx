@@ -264,13 +264,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
                 <span>最新報價</span>
               </button>
-              <button
-                onClick={() => onNavigateTab('portfolio')}
-                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 font-medium transition cursor-pointer"
-              >
-                <span>完整持股管理</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
 
