@@ -1,6 +1,6 @@
 import { parseCsv } from './signalsFeedService';
 
-// Drive: Project_財商工程/Portfolio_00882/管理目錄/00882_成分股股利資料庫（資料夾為知道連結者可檢視，免登入）
+// Drive: Project_財商工程/Portfolio_00882/成分股股利資料庫/00882_成分股股利資料庫（資料夾為知道連結者可檢視，免登入）
 // 由 Investment_Tracker 端每月底排程（富途牛牛＋中信投信持股）重建；APP 只讀不寫。
 export const CONSTITUENTS_SHEET_ID = '1Jq599WzoQUDsooZDhJhyK8uaEMgDiLLCoZthWk2WXtw';
 
