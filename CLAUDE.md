@@ -23,7 +23,7 @@
 
 - 市值約 4,452,000 TWD；台股 100%（底層為港股中國高股息），單一標的集中。
 - 2026 年已入帳股利 276,244；未來一年推估約 300,000，距目標缺口約 200,000/年。
-- 詳見 `portfolio/snapshots/2026-10-01.md`。新快照產生後，請同步更新本段。
+- 研究筆記與快照統一放在 Investment_Tracker REPO；本 REPO 只處理 APP，APP 即時讀 Drive 的 Sheet（2026-10-16 Hachi 定案）。
 
 ## ⛔ 嚴禁修改 Investment_Tracker_Core
 
@@ -82,12 +82,11 @@ scripts/                     共用計算或抓價工具
 | Skill | 用途 |
 | --- | --- |
 | `fin-commit` | 所有 commit 的流程與格式檢查 |
-| `tool-note-writer` | 撰寫、修改、搜尋筆記（第一版：財商架構 `arch`） |
 | `markdown-linter` | Markdown 格式檢查，與 CI 共用設定 |
 
 ## 思考類文件的寫法
 
-筆記一律用 `tool-note-writer` skill 撰寫，格式與受控詞彙見該 skill 的 `references/`。
+筆記一律在 Investment_Tracker REPO 用 `tool-note-writer` skill 撰寫；本 REPO 不放研究筆記。
 
 架構、研究、趨勢這類文件是長期累積的思考資產，寫法要讓日後回頭看時能分辨「當時怎麼想、依據是什麼、後來對不對」。
 
