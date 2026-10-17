@@ -16,8 +16,7 @@
 
 1. **擴充規則與技能**：新增任何規則或技能時，請以 Claude 官方原生語法直接建立於 `.claude/rules/<rule-name>.md` 或 `.claude/skills/<skill-name>/`，並同步更新本檔與 `.agent/rules/AGENT.md` 的引用清單。
 2. **⛔ 嚴禁修改 Investment_Tracker_Core**：試算表為唯讀資料來源，禁止任何寫入、修改欄位或公式之操作。
-3. **驗證通過才可 Commit**：
-   - 任何 TypeScript 變更必須先通過 `npm run lint`（`tsc --noEmit`）型別檢查。
-   - 任何 Python 腳本或技能變更，必須使用 Conda 環境 `ai-it-go` 執行 `pytest` 測試通過。
-   - 提交一律透過 `.claude/skills/fin-commit/scripts/committer.py` 執行結構化 Commit 與 Push。
+3. **驗證通過主動自動 Commit**：
+   - 任何 TypeScript 變更必須先通過 `npm run lint`（`tsc --noEmit`）型別檢查；Python 變更必須於 Conda `ai-it-go` 環境通過 `pytest` 測試。
+   - 使用者指示 commit 或任務完成時，Agent 必須主動調用 `.claude/skills/fin-commit` 技能完成全自動結構化提交與推送，不逐次詢問確認。
 4. **分支與 PR 鐵律**：所有變更一律在分支上進行並向 `main` 發起 Pull Request，禁止直接 push 到 `main` 分支；CI 全綠後採 Merge Commit 合併。
