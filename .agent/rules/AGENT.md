@@ -16,6 +16,9 @@
    - 任何前端與伺服器 TypeScript 變更，在提交前必須先通過 `npm run lint`（`tsc --noEmit`）驗證無誤。
    - 任何 Python 腳本或技能變更，必須使用 Conda 環境 `ai-it-go` 執行 `pytest` 測試。
    - 確認檢查通過後，才可透過 `.claude/skills/fin-commit/scripts/committer.py` 執行結構化 Commit 與 Push。
+4. **分支與 PR 鐵律（Branch & PR Protocol）**：
+   - 所有變更一律在分支上進行並向 `main` 發起 Pull Request，禁止直接 push 到 `main` 分支。
+   - GitHub Actions CI 全綠後採 Merge Commit 合併。
 
 ---
 
