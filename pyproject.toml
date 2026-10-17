@@ -1,0 +1,22 @@
+[project]
+name = "stock-aistudio"
+version = "0.1.0"
+description = "個人投資追蹤儀表板 Web 應用程式之本機 Python 輔助工具設定"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    # 本機測試與品質工具（Web App 主體套件由 package.json 管理）
+    "pytest>=8.0.0",
+    "ruff>=0.17.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = [".claude/skills"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "E741"]
