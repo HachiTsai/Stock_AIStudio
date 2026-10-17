@@ -12,10 +12,10 @@
 2. **採用 Claude Code 官方語法編寫**：
    - 新增或修改任何 Rule、Skill（`SKILL.md`）或設定時，一律遵循 **Claude 官方原生語法與目錄結構**編寫於 `.claude/` 下。
    - 新增 `.claude/rules/<name>.md` 時，必須同步將引用加入根目錄 `CLAUDE.md` 與本檔案（`.agent/rules/AGENT.md`）第 2 節清單中。
-3. **先驗證、後提交（Test & Lint Before Commit）**：
+3. **先驗證、主動自動提交（Test & Auto-Commit with Skill）**：
    - 任何前端與伺服器 TypeScript 變更，在提交前必須先通過 `npm run lint`（`tsc --noEmit`）驗證無誤。
    - 任何 Python 腳本或技能變更，必須使用 Conda 環境 `ai-it-go` 執行 `pytest` 測試。
-   - 確認檢查通過後，才可透過 `.claude/skills/fin-commit/scripts/committer.py` 執行結構化 Commit 與 Push。
+   - 使用者指示 commit 或任務完成時，Agent 必須主動調用 `.claude/skills/fin-commit/scripts/committer.py` 自動完成結構化 Commit 與 Push，不逐次詢問確認。
 4. **分支與 PR 鐵律（Branch & PR Protocol）**：
    - 所有變更一律在分支上進行並向 `main` 發起 Pull Request，禁止直接 push 到 `main` 分支。
    - GitHub Actions CI 全綠後採 Merge Commit 合併。

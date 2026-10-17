@@ -15,7 +15,22 @@
 
 ---
 
-## 2. 標準提交步驟
+## 2. Agent 自動提交流程原則（Auto-Commit with Skill）
+
+- **主動調用技能**：當使用者指示「commit」、「提交」或當前階段任務完成時，Agent **必須主動調用 `fin-commit` 技能自動完成提交**，不得等待或反覆向使用者確認 commit message 細節。
+- **自主判定與撰寫**：
+  - 類別（Category）、Type 與 Scope 由 Agent 依 staged diff 與規格書自動判定。
+  - Commit Message 內容由 Agent 自主依規格書 §4 模板草擬並寫入 `.git/COMMIT_MSG_TEMP`。
+  - 僅當涉及交易/股利而缺少必要數字（股數、價格、金額、手續費）時才需向使用者詢問，其餘一律自主完成。
+- **全自動端到端流程**：
+  1. 建立或切換至獨立分支（`git checkout -b <branch-name>`）。
+  2. 執行前置驗證（`npm run lint`、`pytest`、`mdlint.py`）。
+  3. 透過 `committer.py` 暫存並提交至 `.git/COMMIT_MSG_TEMP`。
+  4. 推送分支至遠端並透過 `gh pr create` 建立 Pull Request。
+
+---
+
+## 3. 標準提交步驟
 
 1. **暫存與檢查**：
 
@@ -36,14 +51,14 @@
 
 ---
 
-## 3. 安全防護與依賴防呆
+## 4. 安全防護與依賴防呆
 
 - **敏感檔案攔截**：暫存區若包含 `.env*`、憑證私鑰、`credentials.json` 等檔案，腳本將自動中止並阻擋提交（可加 `--allow-sensitive` 解除）。
 - **Python 依賴與規則同步攔截**：AST 自動分析暫存 Python 檔的 `import` 是否登記於 `pyproject.toml`，並驗證 `pyproject.toml` 與 `.claude/rules/python-environment.md` 是否 100% 同步（可加 `--allow-missing-deps` 略過）。
 
 ---
 
-## 4. 禁止事項
+## 5. 禁止事項
 
 - **嚴禁使用未經驗證的提交**：禁止使用簡易的 `git commit -m` 傳遞隨意訊息，一律使用 `--message-file`。
 - **嚴禁直接 push 到 `main`**：一律由 PR 經 CI 驗證通過後合併。
