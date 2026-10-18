@@ -60,13 +60,16 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
 
   const filteredSummaries = useMemo(() => {
     if (marketFilter === 'tw') {
-      return summaries.filter((s) => ['0050', '0056', '00878', '00713', '00919', '00929'].includes(s.etfId));
+      return summaries.filter((s) => [
+        '0050', '0056', '00878', '00713', '00919', '00929',
+        '006208', '00692', '00881', '00940', '00939', '00915', '00918'
+      ].includes(s.etfId));
     }
     if (marketFilter === 'us') {
       return summaries.filter((s) => ['00646', '00662', '00757', '00830', '00712'].includes(s.etfId));
     }
     if (marketFilter === 'jp') {
-      return summaries.filter((s) => ['00645', '00657', '00949', '00951', '00954', '00956'].includes(s.etfId));
+      return summaries.filter((s) => ['00645', '00657', '00661', '00949', '00951', '00954', '00956'].includes(s.etfId));
     }
     if (marketFilter === 'bond') {
       return summaries.filter((s) => s.etfId.endsWith('B'));
@@ -137,11 +140,11 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
           {/* Quick Filter Buttons */}
           <div className="flex flex-wrap items-center gap-2">
             {[
-              { id: 'all', label: '全部標的 (27)' },
-              { id: 'tw', label: '台股高息/大盤' },
-              { id: 'us', label: '美股科技' },
-              { id: 'jp', label: '日股市場' },
-              { id: 'bond', label: '公債/投等債' },
+              { id: 'all', label: `全部標的 (${summaries.length || 34})` },
+              { id: 'tw', label: '台股高息/大盤 (13)' },
+              { id: 'us', label: '美股市場 (5)' },
+              { id: 'jp', label: '日股市場 (7)' },
+              { id: 'bond', label: '公債/債券 (9)' },
             ].map((f) => (
               <button
                 key={f.id}
