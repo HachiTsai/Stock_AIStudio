@@ -13,14 +13,6 @@ import {
   ExternalLink,
   Search,
   Filter,
-  X,
-  Info,
-  Calculator,
-  Sliders,
-  ArrowRight,
-  DollarSign,
-  HelpCircle,
-  Scale,
 } from 'lucide-react';
 import {
   EtfSummaryRow,
@@ -30,27 +22,6 @@ import {
   ALL_MARKET_ETF_SHEET_ID,
   normalizeEtfId,
 } from '../services/constituentsFeedService';
-
-function getConstituentFriction(ticker: string, etfId: string) {
-  const sym = ticker.toUpperCase();
-  const id = etfId.toUpperCase();
-  if (sym.includes('TREASURY') || sym.includes('BOND') || sym.includes('NOTE') || id.endsWith('B')) {
-    return { label: '免稅/免健保', score: 95, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
-  }
-  if (sym.endsWith('.HK') || id === '00882') {
-    return { label: '海外10%免健保', score: 85, color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' };
-  }
-  if (sym.endsWith('.TW') || (/^\d{4,5}$/.test(sym) && id !== '00882')) {
-    return { label: '境內54C留意健保', score: 80, color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' };
-  }
-  if (sym.endsWith('.JP') || sym.endsWith('.T')) {
-    return { label: '日股15.3%預扣', score: 75, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' };
-  }
-  if (sym.endsWith('.US') || /^[A-Z]+$/.test(sym)) {
-    return { label: '美股30%重扣', score: 55, color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
-  }
-  return { label: '一般扣損', score: 75, color: 'text-slate-400 bg-slate-800 border-slate-700' };
-}
 
 interface RadarTabProps {
   initialTicker?: string;
@@ -63,8 +34,6 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const [error, setError] = useState<string | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string>(initialTicker);
   const [marketFilter, setMarketFilter] = useState<string>('all');
-  const [isFrictionModalOpen, setIsFrictionModalOpen] = useState<boolean>(false);
-  const [simGrossDividend, setSimGrossDividend] = useState<number>(50000);
 
   useEffect(() => {
     let cancelled = false;
@@ -349,21 +318,10 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 <div className="text-lg font-bold font-mono text-slate-100">{valScore.toFixed(1)}</div>
                 <div className="text-[10px] text-slate-500">本益比 + 股價淨值比 + 殖利率</div>
               </div>
-              <div
-                onClick={() => setIsFrictionModalOpen(true)}
-                className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-amber-500/60 hover:bg-slate-900/90 transition cursor-pointer group relative"
-                title="點擊展開摩擦阻力深度解構與實質入袋試算"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-[10px] text-amber-400 font-semibold flex items-center space-x-1">
-                    <span>⚖️ 摩擦阻力 fricScore</span>
-                  </div>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 group-hover:bg-amber-500/25 transition font-medium">
-                    試算 🔍
-                  </span>
-                </div>
-                <div className="text-lg font-bold font-mono text-slate-100 mt-0.5">{fricScore.toFixed(1)}</div>
-                <div className="text-[10px] text-slate-500 group-hover:text-amber-300 transition">點擊試算實質配息入袋淨額</div>
+              <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
+                <div className="text-[10px] text-amber-400 font-semibold">⚖️ 摩擦阻力 fricScore</div>
+                <div className="text-lg font-bold font-mono text-slate-100">{fricScore.toFixed(1)}</div>
+                <div className="text-[10px] text-slate-500">在台實質稅費與健保扣損評級</div>
               </div>
             </div>
           </div>
@@ -463,29 +421,20 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                         <th className="p-2.5">#</th>
                         <th className="p-2.5">代號</th>
                         <th className="p-2.5">成分股名稱</th>
-                        <th className="p-2.5 text-center">扣損摩擦屬性</th>
                         <th className="p-2.5 text-right">持股權重</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                      {currentConstituents.map((c, idx) => {
-                        const fricInfo = getConstituentFriction(c.constituentTicker, currentEtf.etfId);
-                        return (
-                          <tr key={idx} className="hover:bg-slate-800/40 transition">
-                            <td className="p-2.5 font-mono text-slate-500">{idx + 1}</td>
-                            <td className="p-2.5 font-mono text-cyan-300 font-semibold">{c.constituentTicker}</td>
-                            <td className="p-2.5 text-slate-200 font-medium">{c.constituentName}</td>
-                            <td className="p-2.5 text-center">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] border font-mono font-medium ${fricInfo.color}`}>
-                                {fricInfo.label}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-bold text-emerald-400">
-                              {c.weightPct.toFixed(2)}%
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {currentConstituents.map((c, idx) => (
+                        <tr key={idx} className="hover:bg-slate-800/40 transition">
+                          <td className="p-2.5 font-mono text-slate-500">{idx + 1}</td>
+                          <td className="p-2.5 font-mono text-cyan-300 font-semibold">{c.constituentTicker}</td>
+                          <td className="p-2.5 text-slate-200 font-medium">{c.constituentName}</td>
+                          <td className="p-2.5 text-right font-mono font-bold text-emerald-400">
+                            {c.weightPct.toFixed(2)}%
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -494,313 +443,6 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
           </div>
         </div>
       ) : null}
-
-      {/* Interactive Friction Breakdown & Cashflow Simulator Modal */}
-      {isFrictionModalOpen && currentEtf && (() => {
-        const etfIdClean = currentEtf.etfId.toUpperCase();
-        const isBond = etfIdClean.endsWith('B');
-        const is00882 = etfIdClean === '00882';
-        const isUS = ['00646', '00662', '00757', '00830', '00712'].includes(etfIdClean);
-        const isJP = ['00645', '00657', '00661', '00949', '00951', '00954', '00956'].includes(etfIdClean);
-        const isTW = !isBond && !is00882 && !isUS && !isJP;
-
-        const whtRate = isUS ? 30.0 : isJP ? 15.315 : is00882 ? 10.0 : 0.0;
-        const whtAmount = Math.round(simGrossDividend * (whtRate / 100));
-        const isNhiLiable = isTW && simGrossDividend >= 20000;
-        const nhiAmount = isNhiLiable ? Math.round(simGrossDividend * 0.0211) : 0;
-        const netCashReceived = Math.max(0, simGrossDividend - whtAmount - nhiAmount);
-        const retentionRatePct = simGrossDividend > 0 ? ((netCashReceived / simGrossDividend) * 100).toFixed(1) : '100.0';
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-            <div className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6">
-              {/* Header */}
-              <div className="flex items-start justify-between pb-4 border-b border-slate-800">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
-                    <Scale className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h2 className="text-xl font-extrabold text-slate-100 tracking-tight">
-                        摩擦阻力係數（fricScore）深度解構與實質入袋試算
-                      </h2>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 font-mono">
-                        {currentEtf.etfId} 評分 {fricScore.toFixed(1)} 分
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      解析【{currentEtf.etfId} ｜ {currentEtf.etfName}】被境外稅負、二代健保、內扣費用與匯兌折損之實質影響
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsFrictionModalOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Section 1: Four Core Friction Components */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-amber-400" />
-                  <span>摩擦阻力係數四大數據組成</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-200">① 股利海外預扣所得稅 (WHT)</span>
-                      <span className="font-mono font-bold text-amber-400">{whtRate}%</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {isUS
-                        ? '受美國 IRS 強制預扣 30% 股息稅，對高股息投資人為極重折損摩擦。'
-                        : is00882
-                        ? '中港紅籌/H股僅預扣約 10% 企業所得稅，無美國 30% 重稅負擔。'
-                        : isJP
-                        ? '日本持股預扣 15.315% 境外所得稅。'
-                        : isBond
-                        ? '台灣掛牌海外公債/投資級債 ETF 屬境外利息所得，免預扣海外稅。'
-                        : '台股境內標的無境外預扣稅，由發放公司直接匯入。'}
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-200">② 二代健保補充保費 (NHI)</span>
-                      <span className={`font-mono font-bold ${isTW ? 'text-amber-400' : 'text-emerald-400'}`}>
-                        {isTW ? '滿2萬扣 2.11%' : '0% 完全豁免'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {isTW
-                        ? '台股 54C 境內所得單筆達 20,000 元（含）以上需扣繳 2.11%，需留意拆單配置。'
-                        : '本標的配息屬於「海外所得（76 項目）」，依健保法規完全免扣繳 2.11% 補充保費！'}
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-200">③ 內扣費用率與證券交易稅</span>
-                      <span className="font-mono font-bold text-cyan-400">
-                        {isBond ? '證交稅 0% (停徵)' : '證交稅 0.1%'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      包含基金經理費（0.15%~0.4%）與保管費（0.03%~0.15%）。債券 ETF 現享政府停徵證交稅優勢。
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-200">④ 最低稅負制與匯兌摩擦</span>
-                      <span className="font-mono font-bold text-emerald-400">
-                        {isTW ? '綜所稅可扣抵 8.5%' : '免稅額 750 萬元'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {isTW
-                        ? '境內股息享有 8.5% 可抵減稅額（上限 8 萬元），高所得級距則可能增加綜所稅負。'
-                        : '全戶境外所得未達 100 萬免申報；基本所得額未達 750 萬完全免稅，大額現金流避風港。'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Interactive Net Cashflow Simulator */}
-              <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20 border border-amber-500/30 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Calculator className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm font-bold text-slate-100">
-                      即時配息實質入袋淨額互動計算器
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-400">
-                    拖拉滑桿或點擊金額即可即時模擬
-                  </span>
-                </div>
-
-                {/* Amount Buttons & Slider */}
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-slate-400">快速預設金額：</span>
-                    {[10000, 20000, 50000, 100000, 200000, 500000].map((amt) => (
-                      <button
-                        key={amt}
-                        onClick={() => setSimGrossDividend(amt)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition cursor-pointer border ${
-                          simGrossDividend === amt
-                            ? 'bg-amber-500/25 text-amber-300 border-amber-500/50 shadow-sm'
-                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                        }`}
-                      >
-                        ${amt.toLocaleString()}
-                        {amt === 20000 && <span className="text-[9px] text-amber-400 ml-1">(健保起扣點)</span>}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="range"
-                      min={5000}
-                      max={500000}
-                      step={5000}
-                      value={simGrossDividend}
-                      onChange={(e) => setSimGrossDividend(Number(e.target.value))}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
-                    />
-                    <span className="font-mono font-black text-amber-400 text-base min-w-[100px] text-right">
-                      ${simGrossDividend.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Calculation Output Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-                    <div className="text-[10px] text-slate-400">名目預計配息</div>
-                    <div className="text-base font-bold font-mono text-slate-100 mt-0.5">
-                      ${simGrossDividend.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-                    <div className="text-[10px] text-slate-400">海外預扣稅 ({whtRate}%)</div>
-                    <div className="text-base font-bold font-mono text-rose-400 mt-0.5">
-                      -${whtAmount.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-                    <div className="text-[10px] text-slate-400">二代健保 (2.11%)</div>
-                    <div className="text-base font-bold font-mono text-amber-400 mt-0.5">
-                      {nhiAmount > 0 ? `-$${nhiAmount.toLocaleString()}` : '$0 (免扣)'}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40 bg-amber-500/10">
-                    <div className="text-[10px] text-amber-300 font-bold">實質到手現金 (到手率)</div>
-                    <div className="text-base font-black font-mono text-emerald-400 mt-0.5">
-                      ${netCashReceived.toLocaleString()}
-                      <span className="text-xs text-emerald-300 font-normal ml-1">({retentionRatePct}%)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Cross-Asset Friction Comparison Matrix */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>全市場跨資產摩擦阻力橫向對比（以領取 ${simGrossDividend.toLocaleString()} 為基準）</span>
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-950/80 text-slate-400 font-mono border-b border-slate-800">
-                      <tr>
-                        <th className="p-2.5">資產類型 (代表標的)</th>
-                        <th className="p-2.5 text-center">摩擦評分</th>
-                        <th className="p-2.5 text-center">海外預扣稅</th>
-                        <th className="p-2.5 text-center">二代健保</th>
-                        <th className="p-2.5 text-right">實質入袋金額</th>
-                        <th className="p-2.5 text-right">實質到手率</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                      <tr className={isBond ? 'bg-amber-500/10 font-semibold' : ''}>
-                        <td className="p-2.5 flex items-center space-x-1.5">
-                          <span>🏛️ 海外債券 (00679B, 00720B, 00751B)</span>
-                          {isBond && <span className="text-[9px] px-1 bg-amber-500 text-slate-950 rounded font-bold">當前標的</span>}
-                        </td>
-                        <td className="p-2.5 text-center font-mono font-bold text-emerald-400">95.0</td>
-                        <td className="p-2.5 text-center font-mono text-emerald-400">$0 (0%)</td>
-                        <td className="p-2.5 text-center font-mono text-emerald-400">$0 (免扣)</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-emerald-400">
-                          ${simGrossDividend.toLocaleString()}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-emerald-400">100.0%</td>
-                      </tr>
-                      <tr className={is00882 ? 'bg-amber-500/10 font-semibold' : ''}>
-                        <td className="p-2.5 flex items-center space-x-1.5">
-                          <span>🌏 中港高息 (00882 中信中國高股息)</span>
-                          {is00882 && <span className="text-[9px] px-1 bg-amber-500 text-slate-950 rounded font-bold">當前標的</span>}
-                        </td>
-                        <td className="p-2.5 text-center font-mono font-bold text-cyan-400">85.0</td>
-                        <td className="p-2.5 text-center font-mono text-rose-400">
-                          -${Math.round(simGrossDividend * 0.10).toLocaleString()} (10%)
-                        </td>
-                        <td className="p-2.5 text-center font-mono text-emerald-400">$0 (海外所得免扣)</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-100">
-                          ${Math.round(simGrossDividend * 0.90).toLocaleString()}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-cyan-400">90.0%</td>
-                      </tr>
-                      <tr className={isTW ? 'bg-amber-500/10 font-semibold' : ''}>
-                        <td className="p-2.5 flex items-center space-x-1.5">
-                          <span>🇹🇼 台股高息 (0056, 00878, 00919)</span>
-                          {isTW && <span className="text-[9px] px-1 bg-amber-500 text-slate-950 rounded font-bold">當前標的</span>}
-                        </td>
-                        <td className="p-2.5 text-center font-mono font-bold text-sky-400">80.0</td>
-                        <td className="p-2.5 text-center font-mono text-emerald-400">$0 (境內無預扣)</td>
-                        <td className="p-2.5 text-center font-mono text-amber-400">
-                          {simGrossDividend >= 20000 ? `-$${Math.round(simGrossDividend * 0.0211).toLocaleString()} (2.11%)` : '$0 (未滿2萬)'}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-100">
-                          ${(simGrossDividend - (simGrossDividend >= 20000 ? Math.round(simGrossDividend * 0.0211) : 0)).toLocaleString()}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-sky-400">
-                          {simGrossDividend >= 20000 ? '97.9%' : '100.0%'}
-                        </td>
-                      </tr>
-                      <tr className={isJP ? 'bg-amber-500/10 font-semibold' : ''}>
-                        <td className="p-2.5 flex items-center space-x-1.5">
-                          <span>🇯🇵 日股龍頭 (00645, 00949)</span>
-                          {isJP && <span className="text-[9px] px-1 bg-amber-500 text-slate-950 rounded font-bold">當前標的</span>}
-                        </td>
-                        <td className="p-2.5 text-center font-mono font-bold text-indigo-400">75.0</td>
-                        <td className="p-2.5 text-center font-mono text-rose-400">
-                          -${Math.round(simGrossDividend * 0.15315).toLocaleString()} (15.3%)
-                        </td>
-                        <td className="p-2.5 text-center font-mono text-emerald-400">$0 (免扣)</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-100">
-                          ${Math.round(simGrossDividend * (1 - 0.15315)).toLocaleString()}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-indigo-400">84.7%</td>
-                      </tr>
-                      <tr className={isUS ? 'bg-amber-500/10 font-semibold' : ''}>
-                        <td className="p-2.5 flex items-center space-x-1.5">
-                          <span>🇺🇸 美股大盤 (00646, 00662)</span>
-                          {isUS && <span className="text-[9px] px-1 bg-amber-500 text-slate-950 rounded font-bold">當前標的</span>}
-                        </td>
-                        <td className="p-2.5 text-center font-mono font-bold text-rose-400">55.0</td>
-                        <td className="p-2.5 text-center font-mono text-rose-400">
-                          -${Math.round(simGrossDividend * 0.30).toLocaleString()} (30.0%)
-                        </td>
-                        <td className="p-2.5 text-center font-mono text-emerald-400">$0 (免扣)</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-100">
-                          ${Math.round(simGrossDividend * 0.70).toLocaleString()}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-rose-400">70.0%</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Close Button Footer */}
-              <div className="pt-2 flex justify-end">
-                <button
-                  onClick={() => setIsFrictionModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
-                >
-                  關閉試算視窗
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 };
