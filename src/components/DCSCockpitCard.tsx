@@ -100,7 +100,7 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                DCS 投資控制大腦 ｜ {dcs.ticker}
+                核心投資決策儀表 ｜ {dcs.ticker}
               </span>
               <span className="flex h-2 w-2 relative">
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${postureStyles.indicator}`} />
@@ -108,12 +108,12 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
               </span>
             </div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              目標控制迴路 & 即時戰術姿態
+              年度股利目標追蹤 & 即時配置建議
             </h2>
           </div>
         </div>
 
-        {/* Tactical Posture Pill */}
+        {/* Strategy Status Pill */}
         <div className={`inline-flex items-center space-x-2.5 px-4 py-2 rounded-xl border text-sm font-bold ${postureStyles.badgeBg} shadow-sm self-start sm:self-auto`}>
           <PostureIcon className="w-4 h-4 shrink-0" />
           <span>{dcs.postureLabel}</span>
@@ -124,7 +124,7 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
       <div className="mt-4 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center space-x-2 text-slate-300">
           <span className="px-2 py-0.5 rounded bg-slate-800 text-[11px] font-mono text-slate-400 shrink-0">
-            戰術指引
+            操作指引
           </span>
           <span className="font-medium text-slate-200">{dcs.actionGuide}</span>
         </div>
@@ -139,7 +139,7 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
               title="檢視四象限基本面與穿透風險雷達"
             >
               <Radar className="w-3.5 h-3.5 text-cyan-400" />
-              <span>四象限雷達</span>
+              <span>四象限基本面雷達</span>
             </button>
           )}
         </div>
@@ -147,16 +147,16 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
 
 
 
-      {/* Main Grid: Control Loop (SP/PV/Error) + C-Engine Snowball */}
+      {/* Main Grid: Target Progress (SP/PV/Gap) + Snowball Reinvestment */}
       <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* SP & PV */}
         <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/80 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>目標設定值 (SP)</span>
+            <span>目標年股利 (SP)</span>
             <span className="font-mono text-emerald-400">500,000 TWD/年</span>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-xs text-slate-400">測量值 (PV)</span>
+            <span className="text-xs text-slate-400">目前推估年股利 (PV)</span>
             <span className="text-xl font-bold font-mono text-slate-100">
               {maskTWD(dcs.processValuePV)}
               <span className="text-xs text-slate-500 ml-1">TWD</span>
@@ -174,10 +174,10 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
           </div>
         </div>
 
-        {/* System Error & Capital Gap */}
+        {/* Capital Gap */}
         <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/80 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>系統閉環偏差 (Error)</span>
+            <span>目標達成缺口 (Gap)</span>
             <span className="font-mono text-amber-400">
               -{maskTWD(dcs.systemError)} TWD
             </span>
@@ -195,12 +195,12 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
           </div>
         </div>
 
-        {/* C-Engine Snowball Timeline */}
+        {/* Snowball Reinvestment Timeline */}
         <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/80 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>複利滾雪球時間線 (C 引擎)</span>
+              <span>股息複利再投入試算 (純股利無額外本金)</span>
             </span>
             <span className="text-[10px] text-slate-500">零額外本金</span>
           </div>

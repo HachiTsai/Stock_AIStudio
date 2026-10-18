@@ -194,7 +194,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         </div>
       </div>
 
-      {/* DCS Control Cockpit: Tactical Posture & 500k Loop */}
+      {/* 核心投資決策儀表：年度目標追蹤與配置建議 */}
       {mainHolding && (
         <DCSCockpitCard
           holding={mainHolding}

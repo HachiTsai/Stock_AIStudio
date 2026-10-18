@@ -103,38 +103,38 @@ export function evaluateDCSControl(
   const scoreDate = latestScore?.date ?? '2026-10-16';
 
   let posture: TacticalPosture = 'STEADY_REINVEST';
-  let postureName = '預設穩健複利姿態 (Steady Reinvest)';
-  let postureLabel = '【穩健複利 (Steady Reinvest)】';
+  let postureName = '穩健複利策略 (Steady Reinvest)';
+  let postureLabel = '【穩健複利策略 (Steady Reinvest)】';
   let actionGuide = '維持例行性半年配息再投入，按部就班累積雪球';
   let color: 'red' | 'yellow' | 'green' | 'orange' | 'blue' = 'blue';
 
-  // 優先級 1：高息陷阱斷路
+  // 優先級 1：高息陷阱防護
   if (modelYield >= 0.08 && (netScore < 50 || divScore < 40)) {
     posture = 'TRAP_ALERT';
-    postureName = '高息陷阱斷路保護 (Yield Trap Trip)';
-    postureLabel = '【陷阱警戒 (Yield Trap Alert)】';
-    actionGuide = '強制關閉加碼閥門！股息暫留現金池，啟動持股專案審查';
+    postureName = '高息陷阱防護警戒 (Yield Trap Alert)';
+    postureLabel = '【陷阱防護警戒 (Yield Trap Alert)】';
+    actionGuide = '防護機制啟動！股息暫留現金池，啟動持股基本面檢視';
     color = 'red';
   } else if (southboundFlow < -8000) {
-    // 優先級 2：流速過快斷路
+    // 優先級 2：流速過快警報
     posture = 'VELOCITY_PAUSE';
-    postureName = '資金流速過快警報 (Velocity Trip)';
-    postureLabel = '【流速警戒 (Velocity Pause)】';
+    postureName = '資金流速防護警戒 (Velocity Pause)';
+    postureLabel = '【流速防護警戒 (Velocity Pause)】';
     actionGuide = '暫緩大額市價單買進，等待資金流速放緩再行佈置';
     color = 'yellow';
   } else if (modelYield >= DCS_CALIBRATION.CHEAP_THRESHOLD && netScore >= 70 && divScore >= 60) {
-    // 優先級 3：積極進攻
+    // 優先級 3：積極增持
     posture = 'AGGRESSIVE_ACCUMULATE';
-    postureName = '積極進攻姿態 (Aggressive Accumulate)';
-    postureLabel = '【積極進攻 (Aggressive Accumulate)】';
-    actionGuide = '股息 100% 立即再投入，若有閒置本金啟動額外加碼';
+    postureName = '積極增持配置 (Aggressive Accumulate)';
+    postureLabel = '【積極增持配置 (Aggressive Accumulate)】';
+    actionGuide = '股息 100% 立即再投入，若有閒置資金可分批增持';
     color = 'green';
   } else if (modelYield <= DCS_CALIBRATION.EXPENSIVE_THRESHOLD) {
-    // 優先級 4：估值過熱防禦
+    // 優先級 4：估值偏高觀望
     posture = 'OVERVALUED_HOLD';
-    postureName = '估值過熱防禦姿態 (Overvalued / Hold)';
-    postureLabel = '【防禦觀望 (Overvalued / Hold)】';
-    actionGuide = '停止加碼買進，維持既有部位持有，股息可部分保留現金儲備';
+    postureName = '估值偏高觀望 (Overvalued / Hold)';
+    postureLabel = '【估值偏高觀望 (Overvalued / Hold)】';
+    actionGuide = '暫停追高買進，維持既有部位持有，股息可部分保留現金儲備';
     color = 'orange';
   }
 
