@@ -22,11 +22,13 @@
   - 類別（Category）、Type 與 Scope 由 Agent 依 staged diff 與規格書自動判定。
   - Commit Message 內容由 Agent 自主依規格書 §4 模板草擬並寫入 `.git/COMMIT_MSG_TEMP`。
   - 僅當涉及交易/股利而缺少必要數字（股數、價格、金額、手續費）時才需向使用者詢問，其餘一律自主完成。
-- **全自動端到端流程**：
+- **全自動端到端流程（模式 B：全自動持續交付制）**：
   1. 建立或切換至獨立分支（`git checkout -b <branch-name>`）。
-  2. 執行前置驗證（`npm run lint`、`pytest`、`mdlint.py`）。
+  2. 執行前置驗證（`npm run lint`、`pytest`、`mdlint.py`、`npm run build`）。
   3. 透過 `committer.py` 暫存並提交至 `.git/COMMIT_MSG_TEMP`。
-  4. 推送分支至遠端並透過 `gh pr create` 建立 Pull Request。
+  4. 推送分支至遠端並透過 `gh pr create` 發起 Pull Request。
+  5. 監看 GitHub Actions CI 狀態；確認全綠（All checks passed）後，Agent 自動以標準 Merge Commit（`gh pr merge <id> --merge --delete-branch`）合入 `main`。
+  6. 切回 `main` 並執行 `git pull` 保持最新同步，一氣呵成回報閉環結果。
 
 ---
 
