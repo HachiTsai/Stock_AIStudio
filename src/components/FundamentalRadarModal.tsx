@@ -20,6 +20,7 @@ import {
   fetchAllMarketSummary,
   fetchAllMarketConstituents,
   ALL_MARKET_ETF_SHEET_ID,
+  normalizeEtfId,
 } from '../services/constituentsFeedService';
 
 interface FundamentalRadarModalProps {
@@ -70,13 +71,15 @@ export const FundamentalRadarModal: React.FC<FundamentalRadarModalProps> = ({
   }, [isOpen]);
 
   const currentEtf = useMemo(() => {
-    return summaries.find((s) => s.etfId === selectedTicker) || summaries[0] || null;
+    const target = normalizeEtfId(selectedTicker);
+    return summaries.find((s) => normalizeEtfId(s.etfId) === target) || summaries[0] || null;
   }, [summaries, selectedTicker]);
 
   const currentConstituents = useMemo(() => {
     if (!currentEtf) return [];
+    const target = normalizeEtfId(currentEtf.etfId);
     return constituents
-      .filter((c) => c.etfId === currentEtf.etfId)
+      .filter((c) => normalizeEtfId(c.etfId) === target)
       .sort((a, b) => b.weightPct - a.weightPct)
       .slice(0, 10);
   }, [constituents, currentEtf]);

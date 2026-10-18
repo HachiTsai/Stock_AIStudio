@@ -61,15 +61,29 @@ export const ALL_MARKET_ETF_SHEET_ID = '1GIhbRyL-h96ACVjlSSW9YUFMiAItg_SP9Wi0o3W
 export const allMarketCsvUrl = (sheet: string) =>
   `https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 
+const FOUR_DIGIT_ETFS = new Set(['0050', '0051', '0052', '0053', '0054', '0055', '0056']);
+
 export function normalizeEtfId(id: string): string {
-  const clean = id.trim();
-  if (/^\d+$/.test(clean)) {
-    return clean.padStart(clean.length <= 4 ? 4 : 5, '0');
-  }
-  if (/^\d+B$/i.test(clean)) {
+  const clean = id.trim().toUpperCase();
+  if (!clean) return '';
+
+  // 帶 B 債券 ETF，如 679B, 00679B
+  if (/^\d+B$/.test(clean)) {
     const num = clean.slice(0, -1);
     return `${num.padStart(5, '0')}B`;
   }
+
+  // 純數字
+  if (/^\d+$/.test(clean)) {
+    const numVal = parseInt(clean, 10);
+    // 0050, 0056 等少數 4 碼 ETF
+    if (numVal === 50 || numVal === 56 || (clean.length <= 4 && FOUR_DIGIT_ETFS.has(clean.padStart(4, '0')))) {
+      return clean.padStart(4, '0');
+    }
+    // 其餘所有台股跨市場 ETF 一律為 5 碼（如 00882, 00878, 00919, 00646 等）
+    return clean.padStart(5, '0');
+  }
+
   return clean;
 }
 
