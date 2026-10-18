@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { OverviewTab } from './components/OverviewTab';
 import { IntelligenceTab } from './components/IntelligenceTab';
 import { DividendsTab } from './components/DividendsTab';
+import { RadarTab } from './components/RadarTab';
 import { 
   INITIAL_HOLDINGS, 
   INITIAL_DIVIDENDS, 
@@ -294,6 +295,9 @@ const AppContent: React.FC = () => {
           />
         )}
 
+        {activeTab === 'radar' && (
+          <RadarTab initialTicker={mainHolding?.ticker || '00882'} />
+        )}
 
         {activeTab === 'dividends' && (
           <DividendsTab
