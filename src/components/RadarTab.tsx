@@ -234,9 +234,16 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               <span className="text-xs font-bold text-slate-300">
                 【{currentEtf.etfId}】四象限幾何雷達
               </span>
-              <span className="text-xs font-mono font-bold text-cyan-400">
-                覆蓋率 {areaPct}%
-              </span>
+              <div className="flex items-center space-x-2">
+                {currentEtf.currentPrice ? (
+                  <span className="text-xs font-mono font-bold text-slate-200 bg-slate-800/90 px-2.5 py-0.5 rounded-lg border border-slate-700">
+                    市價 ${currentEtf.currentPrice.toFixed(2)}
+                  </span>
+                ) : null}
+                <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-lg border border-cyan-500/20">
+                  覆蓋率 {areaPct}%
+                </span>
+              </div>
             </div>
 
             <div className="relative w-[320px] h-[320px]">
@@ -319,9 +326,16 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 <div className="text-[10px] text-slate-500">本益比 + 股價淨值比 + 殖利率</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                <div className="text-[10px] text-amber-400 font-semibold">⚖️ 摩擦阻力 fricScore</div>
-                <div className="text-lg font-bold font-mono text-slate-100">{fricScore.toFixed(1)}</div>
-                <div className="text-[10px] text-slate-500">在台實質稅費與健保扣損評級</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] text-amber-400 font-semibold">⚖️ 實質摩擦友善度</div>
+                  <div className="text-[10px] font-mono font-bold text-amber-300">{fricScore.toFixed(1)} 分</div>
+                </div>
+                <div className="text-base font-bold font-mono text-slate-100 mt-0.5">
+                  年損耗 {currentEtf.totalFrictionPct.toFixed(2)}%
+                </div>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  TER {currentEtf.terPct.toFixed(2)}% ＋ 健保 {currentEtf.nhiPct.toFixed(3)}%
+                </div>
               </div>
             </div>
           </div>
@@ -332,13 +346,22 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
             <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                     <span className="text-2xl font-black text-slate-100 font-mono tracking-tight">
                       {currentEtf.etfId}
                     </span>
                     <span className="text-lg font-bold text-slate-200">
                       {currentEtf.etfName}
                     </span>
+                    {currentEtf.currentPrice ? (
+                      <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 shadow-sm">
+                        <span className="text-[11px] text-slate-400 font-medium">當前股價</span>
+                        <span className="text-lg font-extrabold font-mono text-cyan-300">
+                          ${currentEtf.currentPrice.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-cyan-500 font-mono">TWD</span>
+                      </div>
+                    ) : null}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
                     追蹤指數：<span className="text-slate-300 font-medium">{currentEtf.benchmark || '-'}</span> ｜ 交易所：{currentEtf.exchange}
@@ -391,6 +414,64 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               </div>
             </div>
 
+            {/* All-in Tax & Fee Breakdown Card */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 border border-amber-500/20 shadow-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-amber-300">⚖️ 全市場實質所有稅金費用總計（公開資訊觀測）</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono font-semibold">
+                    實質年損耗 {currentEtf.totalFrictionPct.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="text-xs font-mono text-slate-300">
+                  每百萬投資年耗損約 <strong className="text-amber-400 font-bold">${currentEtf.costPerMillion.toLocaleString()}</strong> 元
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">① 內扣總費用率 (TER)</div>
+                  <div className="text-base font-extrabold font-mono text-slate-100 mt-0.5">
+                    {currentEtf.terPct.toFixed(2)}%
+                  </div>
+                  <div className="text-[9px] text-slate-500 mt-0.5">投信投顧公會實質總費用</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">② 二代健保實質負擔</div>
+                  <div className="text-base font-extrabold font-mono text-slate-100 mt-0.5">
+                    {currentEtf.nhiPct.toFixed(3)}%
+                  </div>
+                  <div className="text-[9px] text-slate-500 mt-0.5">
+                    {currentEtf.etfId === '00882'
+                      ? '34.36% 大陸所得課 2.11%'
+                      : currentEtf.etfId.endsWith('B') || ['00646','00662','00757','00830','00712','00645','00657','00661','00949','00951','00954','00956'].includes(currentEtf.etfId)
+                      ? '海外所得免健保 (0%)'
+                      : '54C 境內所得課 2.11%'}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">③ 證券交易稅</div>
+                  <div className="text-base font-extrabold font-mono text-slate-100 mt-0.5">
+                    {currentEtf.stampTaxPct.toFixed(2)}%
+                  </div>
+                  <div className="text-[9px] text-slate-500 mt-0.5">
+                    {currentEtf.stampTaxPct === 0 ? '債券 ETF 依法停徵' : '股票 ETF 法定稅率'}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">④ 摩擦友善度評級</div>
+                  <div className="text-base font-extrabold font-mono text-amber-400 mt-0.5">
+                    {currentEtf.fricScore.toFixed(1)} 分
+                  </div>
+                  <div className="text-[9px] text-slate-500 mt-0.5">總摩擦越低評分越高</div>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-amber-300/90 bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20 leading-relaxed">
+                {currentEtf.taxNote}
+              </div>
+            </div>
+
             {/* Top 10 Holdings Table */}
             <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
@@ -398,15 +479,22 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                   <Layers className="w-4 h-4 text-cyan-400" />
                   <span>穿透前十大成分股權重透視</span>
                 </div>
-                <a
-                  href={`https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/edit`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
-                >
-                  <span>開啟雲端 Google Sheets</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                <div className="flex items-center space-x-3">
+                  {currentEtf.currentPrice ? (
+                    <span className="hidden sm:inline-flex items-center text-slate-400 font-mono text-xs">
+                      標的市價：<strong className="text-cyan-300 ml-1 font-bold">${currentEtf.currentPrice.toFixed(2)}</strong>
+                    </span>
+                  ) : null}
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
+                  >
+                    <span>開啟雲端 Google Sheets</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
 
               {currentConstituents.length === 0 ? (
