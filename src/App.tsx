@@ -8,7 +8,7 @@ import {
   INITIAL_DIVIDENDS, 
   INITIAL_TRANSACTIONS,
 } from './data/initialData';
-import { fetchSignalsFeed } from './services/signalsFeedService';
+import { fetchSignalsFeed, fetchScoreHistory, ScorePoint } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
 import { Holding, DividendRecord, Transaction, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
@@ -75,6 +75,22 @@ const AppContent: React.FC = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // DCS 控制系統所需之情報庫評分歷史（讀取評分歷史分頁最後一列）
+  const [latestScore, setLatestScore] = useState<ScorePoint | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchScoreHistory()
+      .then((history) => {
+        if (!cancelled && history.length > 0) {
+          setLatestScore(history[history.length - 1]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 持股與交易明細以 Drive 的「持股資料庫」「交易明細資料庫」為準（排程依 Core 唯讀重建，免登入讀取）。
@@ -253,6 +269,7 @@ const AppContent: React.FC = () => {
             dividends={dividends}
             onNavigateTab={setActiveTab}
             onUpdateHolding={handleUpdateHolding}
+            latestScore={latestScore}
           />
         )}
 

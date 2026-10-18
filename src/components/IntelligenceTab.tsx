@@ -33,20 +33,34 @@ const ScoreTrend: React.FC<{ points: ScorePoint[] }> = ({ points }) => {
   const delta = last.netScore - base.netScore;
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-3 border-t border-slate-800">
-      <div className="shrink-0">
-        <div className="text-[11px] text-slate-400">綜合趨勢分數</div>
-        <div className="flex items-baseline gap-2 font-mono">
-          <span className="text-2xl font-bold text-emerald-400">{last.netScore}</span>
-          <span className="text-[11px] text-slate-500">/ 100</span>
-          <span
-            className={`text-xs font-bold ${
-              delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-slate-400'
-            }`}
-          >
-            {delta > 0 ? '+' : ''}
-            {delta} 近一週
-          </span>
+      <div className="shrink-0 flex items-center gap-4">
+        <div>
+          <div className="text-[11px] text-slate-400">綜合趨勢分數</div>
+          <div className="flex items-baseline gap-2 font-mono">
+            <span className="text-2xl font-bold text-emerald-400">{last.netScore}</span>
+            <span className="text-[11px] text-slate-500">/ 100</span>
+            <span
+              className={`text-xs font-bold ${
+                delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-slate-400'
+              }`}
+            >
+              {delta > 0 ? '+' : ''}
+              {delta} 近一週
+            </span>
+          </div>
         </div>
+        {last.divScore !== undefined && (
+          <div className="border-l border-slate-800 pl-3">
+            <div className="text-[10px] text-slate-400">股利延續</div>
+            <div className="text-lg font-bold font-mono text-cyan-400">{last.divScore}</div>
+          </div>
+        )}
+        {last.valScore !== undefined && (
+          <div className="border-l border-slate-800 pl-3">
+            <div className="text-[10px] text-slate-400">估值邊際</div>
+            <div className="text-lg font-bold font-mono text-purple-400">{last.valScore}</div>
+          </div>
+        )}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16" preserveAspectRatio="none" role="img" aria-label="綜合趨勢分數折線">
         <line x1="0" x2={W} y1={y(50)} y2={y(50)} stroke="currentColor" className="text-slate-700" strokeDasharray="3 3" />
