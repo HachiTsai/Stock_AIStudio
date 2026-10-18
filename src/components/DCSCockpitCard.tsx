@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Sliders,
   Cpu,
+  Radar,
 } from 'lucide-react';
 import { Holding } from '../types/portfolio';
 import { ScorePoint } from '../services/signalsFeedService';
@@ -20,12 +21,14 @@ interface DCSCockpitCardProps {
   holding: Holding;
   latestScore: ScorePoint | null;
   onNavigateTab: (tab: string) => void;
+  onOpenRadar?: (ticker: string) => void;
 }
 
 export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
   holding,
   latestScore,
   onNavigateTab,
+  onOpenRadar,
 }) => {
   const { isPrivacyMaskActive, maskTWD, maskShares } = usePrivacy();
 
@@ -125,10 +128,24 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
           </span>
           <span className="font-medium text-slate-200">{dcs.actionGuide}</span>
         </div>
-        <div className="text-[11px] text-slate-500 font-mono shrink-0">
-          {dcs.scores.status}
+        <div className="flex items-center space-x-2 shrink-0">
+          <div className="text-[11px] text-slate-500 font-mono">
+            {dcs.scores.status}
+          </div>
+          {onOpenRadar && (
+            <button
+              onClick={() => onOpenRadar(dcs.ticker)}
+              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-[11px] font-semibold transition cursor-pointer"
+              title="檢視四象限基本面與穿透風險雷達"
+            >
+              <Radar className="w-3.5 h-3.5 text-cyan-400" />
+              <span>四象限雷達</span>
+            </button>
+          )}
         </div>
       </div>
+
+
 
       {/* Main Grid: Control Loop (SP/PV/Error) + C-Engine Snowball */}
       <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">

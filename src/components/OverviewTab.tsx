@@ -11,7 +11,8 @@ import {
   ArrowRight,
   Calendar,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Radar,
 } from 'lucide-react';
 import { Holding, DividendRecord } from '../types/portfolio';
 import { 
@@ -27,6 +28,7 @@ import { LatestQuoteModal } from './LatestQuoteModal';
 import { usePrivacy } from '../context/PrivacyContext';
 import { DCSCockpitCard } from './DCSCockpitCard';
 import { ScorePoint } from '../services/signalsFeedService';
+import { FundamentalRadarModal } from './FundamentalRadarModal';
 
 interface OverviewTabProps {
   holdings: Holding[];
@@ -44,6 +46,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   latestScore = null,
 }) => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [isRadarModalOpen, setIsRadarModalOpen] = useState(false);
+  const [radarInitialTicker, setRadarInitialTicker] = useState('00882');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { isPrivacyMaskActive, maskTWD, maskShares, maskRawShares, maskCost, maskPct } = usePrivacy();
@@ -101,6 +105,17 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             <button
+              onClick={() => {
+                setRadarInitialTicker(mainHolding?.ticker || '00882');
+                setIsRadarModalOpen(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold shadow-lg shadow-cyan-600/25 transition cursor-pointer"
+              title="查看 27 檔跨市場標的四象限基本面與風險雷達圖"
+            >
+              <Radar className="w-4 h-4 text-cyan-200" />
+              <span>基本面雷達</span>
+            </button>
+            <button
               onClick={() => setIsQuoteModalOpen(true)}
               className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold shadow-lg shadow-teal-600/25 transition cursor-pointer"
               title="更新最新標的股價並重新計算所有欄位"
@@ -116,6 +131,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+
         </div>
 
         {/* Progress Bar & Milestone markers */}
@@ -187,8 +203,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           holding={mainHolding}
           latestScore={latestScore}
           onNavigateTab={onNavigateTab}
+          onOpenRadar={(ticker) => {
+            setRadarInitialTicker(ticker);
+            setIsRadarModalOpen(true);
+          }}
         />
       )}
+
 
       {/* Main KPI Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -441,9 +462,17 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           setTimeout(() => setToastMessage(null), 4500);
         }}
       />
+
+      {/* Fundamental & Risk Radar Modal */}
+      <FundamentalRadarModal
+        isOpen={isRadarModalOpen}
+        onClose={() => setIsRadarModalOpen(false)}
+        initialEtfId={radarInitialTicker}
+      />
     </div>
   );
 };
+
 
 function itemRealCost(holding: Holding | null): string {
   if (!holding || holding.shares <= 0) return '0.00';

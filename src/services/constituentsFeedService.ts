@@ -61,6 +61,18 @@ export const ALL_MARKET_ETF_SHEET_ID = '1GIhbRyL-h96ACVjlSSW9YUFMiAItg_SP9Wi0o3W
 export const allMarketCsvUrl = (sheet: string) =>
   `https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 
+export function normalizeEtfId(id: string): string {
+  const clean = id.trim();
+  if (/^\d+$/.test(clean)) {
+    return clean.padStart(clean.length <= 4 ? 4 : 5, '0');
+  }
+  if (/^\d+B$/i.test(clean)) {
+    const num = clean.slice(0, -1);
+    return `${num.padStart(5, '0')}B`;
+  }
+  return clean;
+}
+
 export interface EtfConstituentRow {
   etfId: string;
   etfName: string;
@@ -81,6 +93,11 @@ export interface EtfSummaryRow {
   top1Holding: string;
   top2Holding: string;
   top3Holding: string;
+  weightedRoe: string;
+  netScore: number;
+  divScore: number;
+  valScore: number;
+  fricScore: number;
   lastModelUpdate: string;
 }
 
@@ -94,7 +111,7 @@ export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]>
     .slice(1)
     .filter((r) => col(r, 'etf_id'))
     .map((r) => ({
-      etfId: col(r, 'etf_id'),
+      etfId: normalizeEtfId(col(r, 'etf_id')),
       etfName: col(r, 'etf_name'),
       constituentTicker: col(r, 'constituent_ticker'),
       constituentName: col(r, 'constituent_name'),
@@ -114,7 +131,7 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
     .slice(1)
     .filter((r) => col(r, 'etf_id'))
     .map((r) => ({
-      etfId: col(r, 'etf_id'),
+      etfId: normalizeEtfId(col(r, 'etf_id')),
       etfName: col(r, 'etf_name'),
       exchange: col(r, 'exchange'),
       category: col(r, 'category'),
@@ -123,7 +140,13 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
       top1Holding: col(r, 'top1_holding'),
       top2Holding: col(r, 'top2_holding'),
       top3Holding: col(r, 'top3_holding'),
+      weightedRoe: col(r, 'weighted_roe') || '-',
+      netScore: Number(col(r, 'net_score')) || 0,
+      divScore: Number(col(r, 'div_score')) || 0,
+      valScore: Number(col(r, 'val_score')) || 0,
+      fricScore: Number(col(r, 'fric_score')) || 0,
       lastModelUpdate: col(r, 'last_model_update'),
     }));
 }
+
 
