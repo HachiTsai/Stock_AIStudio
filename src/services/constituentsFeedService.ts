@@ -111,6 +111,7 @@ export interface EtfConstituentRow {
 export interface EtfSummaryRow {
   etfId: string;
   etfName: string;
+  currentPrice?: number;
   exchange: string;
   category: string;
   benchmark: string;
@@ -125,6 +126,44 @@ export interface EtfSummaryRow {
   fricScore: number;
   lastModelUpdate: string;
 }
+
+export const ETF_PRICE_SNAPSHOTS: Record<string, number> = {
+  '0050': 109.0,
+  '0056': 58.75,
+  '006208': 250.35,
+  '00645': 57.8,
+  '00646': 79.35,
+  '00657': 78.1,
+  '00661': 85.35,
+  '00662': 124.95,
+  '00679B': 25.74,
+  '00687B': 26.75,
+  '00692': 94.35,
+  '00710B': 18.78,
+  '00712': 7.18,
+  '00713': 65.8,
+  '00720B': 31.9,
+  '00751B': 29.93,
+  '00757': 146.3,
+  '00772B': 32.37,
+  '00830': 83.95,
+  '00878': 35.53,
+  '00881': 50.0,
+  '00882': 15.21,
+  '00915': 33.71,
+  '00918': 34.53,
+  '00919': 32.74,
+  '00929': 29.84,
+  '00933B': 15.48,
+  '00937B': 14.15,
+  '00939': 25.09,
+  '00940': 13.48,
+  '00945B': 14.48,
+  '00949': 22.96,
+  '00951': 16.73,
+  '00954': 17.83,
+  '00956': 13.79,
+};
 
 export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]> {
   const res = await fetch(allMarketCsvUrl('ETF_Constituents'));
@@ -155,23 +194,29 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
   return rowsCsv
     .slice(1)
     .filter((r) => col(r, 'etf_id'))
-    .map((r) => ({
-      etfId: normalizeEtfId(col(r, 'etf_id')),
-      etfName: cleanHtmlEntities(col(r, 'etf_name')),
-      exchange: col(r, 'exchange'),
-      category: col(r, 'category'),
-      benchmark: cleanHtmlEntities(col(r, 'benchmark')),
-      constituentCount: Number(col(r, 'constituent_count')) || 0,
-      top1Holding: cleanHtmlEntities(col(r, 'top1_holding')),
-      top2Holding: cleanHtmlEntities(col(r, 'top2_holding')),
-      top3Holding: cleanHtmlEntities(col(r, 'top3_holding')),
-      weightedRoe: col(r, 'weighted_roe') || '-',
-      netScore: Number(col(r, 'net_score')) || 0,
-      divScore: Number(col(r, 'div_score')) || 0,
-      valScore: Number(col(r, 'val_score')) || 0,
-      fricScore: Number(col(r, 'fric_score')) || 0,
-      lastModelUpdate: col(r, 'last_model_update'),
-    }));
+    .map((r) => {
+      const id = normalizeEtfId(col(r, 'etf_id'));
+      const parsedPrice = Number(col(r, 'current_price')) || Number(col(r, 'currentPrice'));
+      const fallbackPrice = ETF_PRICE_SNAPSHOTS[id];
+      return {
+        etfId: id,
+        etfName: cleanHtmlEntities(col(r, 'etf_name')),
+        currentPrice: parsedPrice > 0 ? parsedPrice : fallbackPrice,
+        exchange: col(r, 'exchange'),
+        category: col(r, 'category'),
+        benchmark: cleanHtmlEntities(col(r, 'benchmark')),
+        constituentCount: Number(col(r, 'constituent_count')) || 0,
+        top1Holding: cleanHtmlEntities(col(r, 'top1_holding')),
+        top2Holding: cleanHtmlEntities(col(r, 'top2_holding')),
+        top3Holding: cleanHtmlEntities(col(r, 'top3_holding')),
+        weightedRoe: col(r, 'weighted_roe') || '-',
+        netScore: Number(col(r, 'net_score')) || 0,
+        divScore: Number(col(r, 'div_score')) || 0,
+        valScore: Number(col(r, 'val_score')) || 0,
+        fricScore: Number(col(r, 'fric_score')) || 0,
+        lastModelUpdate: col(r, 'last_model_update'),
+      };
+    });
 }
 
 

@@ -234,9 +234,16 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               <span className="text-xs font-bold text-slate-300">
                 【{currentEtf.etfId}】四象限幾何雷達
               </span>
-              <span className="text-xs font-mono font-bold text-cyan-400">
-                覆蓋率 {areaPct}%
-              </span>
+              <div className="flex items-center space-x-2">
+                {currentEtf.currentPrice ? (
+                  <span className="text-xs font-mono font-bold text-slate-200 bg-slate-800/90 px-2.5 py-0.5 rounded-lg border border-slate-700">
+                    市價 ${currentEtf.currentPrice.toFixed(2)}
+                  </span>
+                ) : null}
+                <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-lg border border-cyan-500/20">
+                  覆蓋率 {areaPct}%
+                </span>
+              </div>
             </div>
 
             <div className="relative w-[320px] h-[320px]">
@@ -332,13 +339,22 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
             <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                     <span className="text-2xl font-black text-slate-100 font-mono tracking-tight">
                       {currentEtf.etfId}
                     </span>
                     <span className="text-lg font-bold text-slate-200">
                       {currentEtf.etfName}
                     </span>
+                    {currentEtf.currentPrice ? (
+                      <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 shadow-sm">
+                        <span className="text-[11px] text-slate-400 font-medium">當前股價</span>
+                        <span className="text-lg font-extrabold font-mono text-cyan-300">
+                          ${currentEtf.currentPrice.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-cyan-500 font-mono">TWD</span>
+                      </div>
+                    ) : null}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
                     追蹤指數：<span className="text-slate-300 font-medium">{currentEtf.benchmark || '-'}</span> ｜ 交易所：{currentEtf.exchange}
@@ -398,15 +414,22 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                   <Layers className="w-4 h-4 text-cyan-400" />
                   <span>穿透前十大成分股權重透視</span>
                 </div>
-                <a
-                  href={`https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/edit`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
-                >
-                  <span>開啟雲端 Google Sheets</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                <div className="flex items-center space-x-3">
+                  {currentEtf.currentPrice ? (
+                    <span className="hidden sm:inline-flex items-center text-slate-400 font-mono text-xs">
+                      標的市價：<strong className="text-cyan-300 ml-1 font-bold">${currentEtf.currentPrice.toFixed(2)}</strong>
+                    </span>
+                  ) : null}
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
+                  >
+                    <span>開啟雲端 Google Sheets</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
 
               {currentConstituents.length === 0 ? (
