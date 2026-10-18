@@ -106,6 +106,10 @@ export interface ScorePoint {
   netScore: number; // 0 ~ 100，正向權重 ÷ (正向＋風險權重)
   bullWeight: number;
   bearWeight: number;
+  divScore?: number;
+  valScore?: number;
+  fricScore?: number;
+  signalCount?: number;
 }
 
 const HISTORY_URL = `https://docs.google.com/spreadsheets/d/${SIGNALS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('評分歷史')}`;
@@ -120,12 +124,23 @@ export async function fetchScoreHistory(): Promise<ScorePoint[]> {
   const idx = (name: string) => header.indexOf(name);
   return rows
     .slice(1)
-    .map((r) => ({
-      date: (r[idx('date')] ?? '').trim(),
-      netScore: Number(r[idx('netScore')]),
-      bullWeight: Number(r[idx('bullWeight')]),
-      bearWeight: Number(r[idx('bearWeight')]),
-    }))
+    .map((r) => {
+      const dScore = idx('divScore') >= 0 ? Number(r[idx('divScore')]) : undefined;
+      const vScore = idx('valScore') >= 0 ? Number(r[idx('valScore')]) : undefined;
+      const fScore = idx('fricScore') >= 0 ? Number(r[idx('fricScore')]) : undefined;
+      const sCount = idx('signalCount') >= 0 ? Number(r[idx('signalCount')]) : undefined;
+      return {
+        date: (r[idx('date')] ?? '').trim(),
+        netScore: Number(r[idx('netScore')]),
+        bullWeight: Number(r[idx('bullWeight')]),
+        bearWeight: Number(r[idx('bearWeight')]),
+        divScore: Number.isFinite(dScore) ? dScore : undefined,
+        valScore: Number.isFinite(vScore) ? vScore : undefined,
+        fricScore: Number.isFinite(fScore) ? fScore : undefined,
+        signalCount: Number.isFinite(sCount) ? sCount : undefined,
+      };
+    })
     .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.netScore))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
+

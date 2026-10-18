@@ -25,12 +25,15 @@ import {
 } from '../utils/calculations';
 import { LatestQuoteModal } from './LatestQuoteModal';
 import { usePrivacy } from '../context/PrivacyContext';
+import { DCSCockpitCard } from './DCSCockpitCard';
+import { ScorePoint } from '../services/signalsFeedService';
 
 interface OverviewTabProps {
   holdings: Holding[];
   dividends: DividendRecord[];
   onNavigateTab: (tab: string) => void;
   onUpdateHolding: (holding: Holding) => void;
+  latestScore?: ScorePoint | null;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -38,6 +41,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   dividends,
   onNavigateTab,
   onUpdateHolding,
+  latestScore = null,
 }) => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -176,6 +180,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* DCS Control Cockpit: Tactical Posture & 500k Loop */}
+      {mainHolding && (
+        <DCSCockpitCard
+          holding={mainHolding}
+          latestScore={latestScore}
+          onNavigateTab={onNavigateTab}
+        />
+      )}
 
       {/* Main KPI Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

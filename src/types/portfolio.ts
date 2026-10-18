@@ -143,3 +143,39 @@ export interface DriveFileSummary {
   webViewLink?: string;
 }
 
+export type TacticalPosture =
+  | 'TRAP_ALERT'
+  | 'VELOCITY_PAUSE'
+  | 'AGGRESSIVE_ACCUMULATE'
+  | 'OVERVALUED_HOLD'
+  | 'STEADY_REINVEST';
+
+export interface DCSControlState {
+  ticker: string;
+  posture: TacticalPosture;
+  postureName: string;
+  postureLabel: string;
+  actionGuide: string;
+  color: 'red' | 'yellow' | 'green' | 'orange' | 'blue';
+  setpointSP: number;
+  processValuePV: number;
+  systemError: number;
+  achievementPct: number;
+  currentShares: number;
+  currentPrice: number;
+  modelYieldPct: number;
+  modelAnnualDividend: number;
+  cheapThreshold: number;
+  expensiveThreshold: number;
+  capitalNeededTwd: number;
+  sharesNeededBoards: number;
+  yearsToGoal: number;
+  scores: {
+    netScore: number;
+    divScore: number;
+    valScore: number;
+    fricScore: number;
+    status: string;
+  };
+}
+
