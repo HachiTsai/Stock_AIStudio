@@ -276,48 +276,109 @@ export const ETF_PRICE_SNAPSHOTS: Record<string, number> = {
   '00956': 13.79,
 };
 
+import {
+  ALL_MARKET_SUMMARY_FALLBACK,
+  ALL_MARKET_CONSTITUENTS_FALLBACK,
+} from '../data/allMarketEtfSnapshot';
+
 export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]> {
-  const res = await fetch(allMarketCsvUrl('ETF_Constituents'));
-  if (!res.ok) throw new Error(`讀取全市場 ETF 成分股資料庫失敗 (${res.status})`);
-  const rowsCsv = parseCsv(await res.text());
-  const header = (rowsCsv[0] ?? []).map((h) => h.trim());
-  const col = (r: string[], k: string) => (r[header.indexOf(k)] ?? '').trim();
-  return rowsCsv
-    .slice(1)
-    .map((r) => {
-      const name = cleanHtmlEntities(col(r, 'etf_name'));
-      const id = resolveEtfId(col(r, 'etf_id'), name);
-      return { r, id, name };
-    })
-    .filter((item) => item.id)
-    .map(({ r, id, name }) => ({
-      etfId: id,
-      etfName: name,
-      constituentTicker: col(r, 'constituent_ticker'),
-      constituentName: cleanHtmlEntities(col(r, 'constituent_name')),
-      weightPct: Number(col(r, 'weight_pct')) || Number(col(r, 'weightPct')) || 0,
-      shares: col(r, 'shares'),
-      updateDate: col(r, 'update_date'),
+  try {
+    const res = await fetch(allMarketCsvUrl('ETF_Constituents'));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rowsCsv = parseCsv(await res.text());
+    const header = (rowsCsv[0] ?? []).map((h) => h.trim());
+    const col = (r: string[], k: string) => (r[header.indexOf(k)] ?? '').trim();
+    const rows = rowsCsv
+      .slice(1)
+      .map((r) => {
+        const name = cleanHtmlEntities(col(r, 'etf_name'));
+        const id = resolveEtfId(col(r, 'etf_id'), name);
+        return { r, id, name };
+      })
+      .filter((item) => item.id)
+      .map(({ r, id, name }) => ({
+        etfId: id,
+        etfName: name,
+        constituentTicker: col(r, 'constituent_ticker'),
+        constituentName: cleanHtmlEntities(col(r, 'constituent_name')),
+        weightPct: Number(col(r, 'weight_pct')) || Number(col(r, 'weightPct')) || 0,
+        shares: col(r, 'shares'),
+        updateDate: col(r, 'update_date'),
+      }));
+    if (rows.length > 0) return rows;
+    throw new Error('Empty constituents response');
+  } catch (err) {
+    console.warn('載入 Google Sheets ETF 成分股失敗，啟用本機備援快照:', err);
+    return ALL_MARKET_CONSTITUENTS_FALLBACK.map((c: any) => ({
+      etfId: normalizeEtfId(c.etf_id),
+      etfName: cleanHtmlEntities(c.etf_name),
+      constituentTicker: c.constituent_ticker,
+      constituentName: cleanHtmlEntities(c.constituent_name),
+      weightPct: Number(c.weight_pct) || 0,
+      shares: c.shares || '',
+      updateDate: c.update_date || '2026-10-18',
     }));
+  }
 }
 
 export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
-  const res = await fetch(allMarketCsvUrl('ETF_Summary'));
-  if (!res.ok) throw new Error(`讀取全市場 ETF 摘要失敗 (${res.status})`);
-  const rowsCsv = parseCsv(await res.text());
-  const header = (rowsCsv[0] ?? []).map((h) => h.trim());
-  const col = (r: string[], k: string) => (r[header.indexOf(k)] ?? '').trim();
-  return rowsCsv
-    .slice(1)
-    .map((r) => {
-      const name = cleanHtmlEntities(col(r, 'etf_name'));
-      const id = resolveEtfId(col(r, 'etf_id'), name);
-      return { r, id, name };
-    })
-    .filter((item) => item.id)
-    .map(({ r, id, name }) => {
-      const parsedPrice = Number(col(r, 'current_price')) || Number(col(r, 'currentPrice'));
-      const fallbackPrice = ETF_PRICE_SNAPSHOTS[id];
+  try {
+    const res = await fetch(allMarketCsvUrl('ETF_Summary'));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rowsCsv = parseCsv(await res.text());
+    const header = (rowsCsv[0] ?? []).map((h) => h.trim());
+    const col = (r: string[], k: string) => (r[header.indexOf(k)] ?? '').trim();
+    const rows = rowsCsv
+      .slice(1)
+      .map((r) => {
+        const name = cleanHtmlEntities(col(r, 'etf_name'));
+        const id = resolveEtfId(col(r, 'etf_id'), name);
+        return { r, id, name };
+      })
+      .filter((item) => item.id)
+      .map(({ r, id, name }) => {
+        const parsedPrice = Number(col(r, 'current_price')) || Number(col(r, 'currentPrice'));
+        const fallbackPrice = ETF_PRICE_SNAPSHOTS[id];
+        const taxMetrics = ETF_TAX_FEE_MAP[id] || {
+          terPct: 0.50,
+          nhiPct: 0.00,
+          stampTaxPct: id.endsWith('B') ? 0.00 : 0.10,
+          totalFrictionPct: 0.50,
+          costPerMillion: 5000,
+          fricScore: 85.0,
+          taxNote: '標準標的稅費模型',
+        };
+        return {
+          etfId: id,
+          etfName: name,
+          currentPrice: parsedPrice > 0 ? parsedPrice : fallbackPrice,
+          exchange: col(r, 'exchange') || 'TWSE',
+          category: col(r, 'category') || 'ETF',
+          benchmark: cleanHtmlEntities(col(r, 'benchmark')),
+          constituentCount: Number(col(r, 'constituent_count')) || 0,
+          top1Holding: cleanHtmlEntities(col(r, 'top1_holding')),
+          top2Holding: cleanHtmlEntities(col(r, 'top2_holding')),
+          top3Holding: cleanHtmlEntities(col(r, 'top3_holding')),
+          weightedRoe: col(r, 'weighted_roe') || '-',
+          netScore: Number(col(r, 'net_score')) || 70,
+          divScore: Number(col(r, 'div_score')) || 70,
+          valScore: Number(col(r, 'val_score')) || 70,
+          fricScore: taxMetrics.fricScore,
+          lastModelUpdate: col(r, 'last_model_update') || '2026-10-18',
+          terPct: taxMetrics.terPct,
+          nhiPct: taxMetrics.nhiPct,
+          stampTaxPct: taxMetrics.stampTaxPct,
+          totalFrictionPct: taxMetrics.totalFrictionPct,
+          costPerMillion: taxMetrics.costPerMillion,
+          taxNote: taxMetrics.taxNote,
+        };
+      });
+    if (rows.length > 0) return rows;
+    throw new Error('Empty summary response');
+  } catch (err) {
+    console.warn('載入 Google Sheets ETF 摘要失敗，啟用本機備援快照:', err);
+    return ALL_MARKET_SUMMARY_FALLBACK.map((s: any) => {
+      const id = normalizeEtfId(s.etf_id);
       const taxMetrics = ETF_TAX_FEE_MAP[id] || {
         terPct: 0.50,
         nhiPct: 0.00,
@@ -329,21 +390,21 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
       };
       return {
         etfId: id,
-        etfName: name,
-        currentPrice: parsedPrice > 0 ? parsedPrice : fallbackPrice,
-        exchange: col(r, 'exchange') || 'TWSE',
-        category: col(r, 'category') || 'ETF',
-        benchmark: cleanHtmlEntities(col(r, 'benchmark')),
-        constituentCount: Number(col(r, 'constituent_count')) || 0,
-        top1Holding: cleanHtmlEntities(col(r, 'top1_holding')),
-        top2Holding: cleanHtmlEntities(col(r, 'top2_holding')),
-        top3Holding: cleanHtmlEntities(col(r, 'top3_holding')),
-        weightedRoe: col(r, 'weighted_roe') || '-',
-        netScore: Number(col(r, 'net_score')) || 70,
-        divScore: Number(col(r, 'div_score')) || 70,
-        valScore: Number(col(r, 'val_score')) || 70,
+        etfName: cleanHtmlEntities(s.etf_name),
+        currentPrice: Number(s.current_price) || ETF_PRICE_SNAPSHOTS[id],
+        exchange: s.exchange || 'TWSE',
+        category: s.category || 'ETF',
+        benchmark: cleanHtmlEntities(s.benchmark),
+        constituentCount: Number(s.constituent_count) || 0,
+        top1Holding: cleanHtmlEntities(s.top1_holding),
+        top2Holding: cleanHtmlEntities(s.top2_holding),
+        top3Holding: cleanHtmlEntities(s.top3_holding),
+        weightedRoe: s.weighted_roe || '-',
+        netScore: Number(s.net_score) || 70,
+        divScore: Number(s.div_score) || 70,
+        valScore: Number(s.val_score) || 70,
         fricScore: taxMetrics.fricScore,
-        lastModelUpdate: col(r, 'last_model_update') || '2026-10-18',
+        lastModelUpdate: s.last_model_update || '2026-10-18',
         terPct: taxMetrics.terPct,
         nhiPct: taxMetrics.nhiPct,
         stampTaxPct: taxMetrics.stampTaxPct,
@@ -352,6 +413,7 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
         taxNote: taxMetrics.taxNote,
       };
     });
+  }
 }
 
 
