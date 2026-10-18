@@ -72,15 +72,44 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
       return summaries.filter((s) => ['00645', '00657', '00661', '00949', '00951', '00954', '00956'].includes(s.etfId));
     }
     if (marketFilter === 'bond') {
-      return summaries.filter((s) => s.etfId.endsWith('B'));
+      return summaries.filter((s) => s.etfId.toUpperCase().endsWith('B'));
     }
     return summaries;
   }, [summaries, marketFilter]);
 
+  const filterCounts = useMemo(() => {
+    const tw = summaries.filter((s) => [
+      '0050', '0056', '00878', '00713', '00919', '00929',
+      '006208', '00692', '00881', '00940', '00939', '00915', '00918'
+    ].includes(s.etfId)).length;
+    const us = summaries.filter((s) => ['00646', '00662', '00757', '00830', '00712'].includes(s.etfId)).length;
+    const jp = summaries.filter((s) => ['00645', '00657', '00661', '00949', '00951', '00954', '00956'].includes(s.etfId)).length;
+    const bond = summaries.filter((s) => s.etfId.toUpperCase().endsWith('B')).length;
+    return { all: summaries.length, tw, us, jp, bond };
+  }, [summaries]);
+
+  // 當市場分類切換時，若原先選取的標的不在當前過濾清單中，自動平滑切換至第一檔標的
+  useEffect(() => {
+    if (filteredSummaries.length > 0) {
+      const isSelectedInList = filteredSummaries.some(
+        (s) => normalizeEtfId(s.etfId) === normalizeEtfId(selectedTicker)
+      );
+      if (!isSelectedInList) {
+        setSelectedTicker(filteredSummaries[0].etfId);
+      }
+    }
+  }, [filteredSummaries, selectedTicker]);
+
   const currentEtf = useMemo(() => {
     const target = normalizeEtfId(selectedTicker);
-    return summaries.find((s) => normalizeEtfId(s.etfId) === target) || summaries[0] || null;
-  }, [summaries, selectedTicker]);
+    return (
+      filteredSummaries.find((s) => normalizeEtfId(s.etfId) === target) ||
+      summaries.find((s) => normalizeEtfId(s.etfId) === target) ||
+      filteredSummaries[0] ||
+      summaries[0] ||
+      null
+    );
+  }, [filteredSummaries, summaries, selectedTicker]);
 
   const currentConstituents = useMemo(() => {
     if (!currentEtf) return [];
@@ -140,11 +169,11 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
           {/* Quick Filter Buttons */}
           <div className="flex flex-wrap items-center gap-2">
             {[
-              { id: 'all', label: `全部標的 (${summaries.length || 34})` },
-              { id: 'tw', label: '台股高息/大盤 (13)' },
-              { id: 'us', label: '美股市場 (5)' },
-              { id: 'jp', label: '日股市場 (7)' },
-              { id: 'bond', label: '公債/債券 (9)' },
+              { id: 'all', label: `全部標的 (${filterCounts.all || summaries.length || 35})` },
+              { id: 'tw', label: `台股高息/大盤 (${filterCounts.tw || 13})` },
+              { id: 'us', label: `美股市場 (${filterCounts.us || 5})` },
+              { id: 'jp', label: `日股市場 (${filterCounts.jp || 7})` },
+              { id: 'bond', label: `公債/債券 (${filterCounts.bond || 9})` },
             ].map((f) => (
               <button
                 key={f.id}
@@ -170,15 +199,19 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
         </div>
         <div className="relative inline-block w-full sm:w-96">
           <select
-            value={selectedTicker}
+            value={currentEtf ? currentEtf.etfId : selectedTicker}
             onChange={(e) => setSelectedTicker(e.target.value)}
             className="w-full appearance-none bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500/40 pr-10 cursor-pointer"
           >
-            {filteredSummaries.map((s) => (
-              <option key={s.etfId} value={s.etfId}>
-                {s.etfId} ｜ {s.etfName} ({s.category})
-              </option>
-            ))}
+            {filteredSummaries.length === 0 ? (
+              <option value="">無符合標的</option>
+            ) : (
+              filteredSummaries.map((s) => (
+                <option key={s.etfId} value={s.etfId}>
+                  {s.etfId} ｜ {s.etfName} ({s.category})
+                </option>
+              ))
+            )}
           </select>
           <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>

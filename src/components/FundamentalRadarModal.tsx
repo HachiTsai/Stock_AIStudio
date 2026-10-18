@@ -151,7 +151,7 @@ export const FundamentalRadarModal: React.FC<FundamentalRadarModalProps> = ({
           </div>
           <div className="relative inline-block w-full sm:w-80">
             <select
-              value={selectedTicker}
+              value={currentEtf ? currentEtf.etfId : selectedTicker}
               onChange={(e) => setSelectedTicker(e.target.value)}
               className="w-full appearance-none bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl px-4 py-2 text-xs sm:text-sm text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500/40 pr-10 cursor-pointer"
             >

@@ -87,6 +87,17 @@ export function normalizeEtfId(id: string): string {
   return clean;
 }
 
+export function cleanHtmlEntities(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
 export interface EtfConstituentRow {
   etfId: string;
   etfName: string;
@@ -126,9 +137,9 @@ export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]>
     .filter((r) => col(r, 'etf_id'))
     .map((r) => ({
       etfId: normalizeEtfId(col(r, 'etf_id')),
-      etfName: col(r, 'etf_name'),
+      etfName: cleanHtmlEntities(col(r, 'etf_name')),
       constituentTicker: col(r, 'constituent_ticker'),
-      constituentName: col(r, 'constituent_name'),
+      constituentName: cleanHtmlEntities(col(r, 'constituent_name')),
       weightPct: Number(col(r, 'weight_pct')) || Number(col(r, 'weightPct')) || 0,
       shares: col(r, 'shares'),
       updateDate: col(r, 'update_date'),
@@ -146,14 +157,14 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
     .filter((r) => col(r, 'etf_id'))
     .map((r) => ({
       etfId: normalizeEtfId(col(r, 'etf_id')),
-      etfName: col(r, 'etf_name'),
+      etfName: cleanHtmlEntities(col(r, 'etf_name')),
       exchange: col(r, 'exchange'),
       category: col(r, 'category'),
-      benchmark: col(r, 'benchmark'),
+      benchmark: cleanHtmlEntities(col(r, 'benchmark')),
       constituentCount: Number(col(r, 'constituent_count')) || 0,
-      top1Holding: col(r, 'top1_holding'),
-      top2Holding: col(r, 'top2_holding'),
-      top3Holding: col(r, 'top3_holding'),
+      top1Holding: cleanHtmlEntities(col(r, 'top1_holding')),
+      top2Holding: cleanHtmlEntities(col(r, 'top2_holding')),
+      top3Holding: cleanHtmlEntities(col(r, 'top3_holding')),
       weightedRoe: col(r, 'weighted_roe') || '-',
       netScore: Number(col(r, 'net_score')) || 0,
       divScore: Number(col(r, 'div_score')) || 0,
