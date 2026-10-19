@@ -143,22 +143,40 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const R = 105;
 
   const tech = useMemo(() => (currentEtf ? computeTechnicalMetrics(currentEtf.etfId) : null), [currentEtf?.etfId]);
-  // 四軸：上=趨勢、右=MACD 動能、下=均量比、左=成本友善
+
+  const roeData = useMemo(() => {
+    if (!currentEtf) return { roeVal: 0, roeScore: 50 };
+    const raw = currentEtf.weightedRoe || '';
+    if (!raw || raw === '-') return { roeVal: 0, roeScore: 50 };
+    const val = parseFloat(raw.replace('%', ''));
+    if (isNaN(val)) return { roeVal: 0, roeScore: 50 };
+    // 獲利效益評分：0% 為 0 分；8%（一般資本成本）為 45 分；15%（巴菲特護城河標準）為 65 分；25% 為 80 分；45% 以上 95~100 分
+    let score = 50;
+    if (val <= 0) score = Math.max(0, 30 + val);
+    else if (val <= 8) score = val * 5.625;
+    else if (val <= 15) score = 45 + ((val - 8) / 7) * 20;
+    else if (val <= 25) score = 65 + ((val - 15) / 10) * 15;
+    else if (val <= 45) score = 80 + ((val - 25) / 20) * 15;
+    else score = Math.min(100, 95 + (val - 45) * 0.25);
+    return { roeVal: val, roeScore: Math.round(score * 10) / 10 };
+  }, [currentEtf?.weightedRoe]);
+
+  // 四軸：上=趨勢、右=MACD 動能、下=均量比、左=企業獲利效益（穿透 ROE）
   const netScore = tech ? tech.trendScore : 50;
   const divScore = tech ? tech.macdScore : 50;
   const valScore = tech ? tech.volScore : 50;
-  const fricScore = currentEtf ? Math.min(100, Math.max(0, currentEtf.fricScore)) : 50;
+  const roeScore = roeData.roeScore;
 
   // Vertex points
   const pNet = { x: cx, y: cy - (R * netScore) / 100 };
   const pDiv = { x: cx + (R * divScore) / 100, y: cy };
   const pVal = { x: cx, y: cy + (R * valScore) / 100 };
-  const pFric = { x: cx - (R * fricScore) / 100, y: cy };
+  const pRoe = { x: cx - (R * roeScore) / 100, y: cy };
 
-  const polygonPath = `${pNet.x},${pNet.y} ${pDiv.x},${pDiv.y} ${pVal.x},${pVal.y} ${pFric.x},${pFric.y}`;
+  const polygonPath = `${pNet.x},${pNet.y} ${pDiv.x},${pDiv.y} ${pVal.x},${pVal.y} ${pRoe.x},${pRoe.y}`;
 
   // Area ratio calculation
-  const area = 0.5 * ((netScore * divScore) / 10000 + (divScore * valScore) / 10000 + (valScore * fricScore) / 10000 + (fricScore * netScore) / 10000);
+  const area = 0.5 * ((netScore * divScore) / 10000 + (divScore * valScore) / 10000 + (valScore * roeScore) / 10000 + (roeScore * netScore) / 10000);
   const areaPct = Math.round(area * 100);
 
   // Status badge
@@ -181,7 +199,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               全市場 ETF 穿透體檢與量化評分矩陣
             </h1>
             <p className="text-sm text-slate-400 leading-relaxed">
-              以還原收盤價計算，依據趨勢（相對 60 日均線）、MACD 動能、均量比（量能）與實質持有成本繪製四象雷達。
+              以還原收盤價計算，依據趨勢（相對 60 日均線）、MACD 動能、均量比（量能）與穿透加權 ROE（企業獲利效益）繪製四象雷達。
             </p>
           </div>
 
@@ -321,7 +339,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 <circle cx={pNet.x} cy={pNet.y} r="4.5" fill="#38bdf8" stroke="#0f172a" strokeWidth="1.5" />
                 <circle cx={pDiv.x} cy={pDiv.y} r="4.5" fill="#34d399" stroke="#0f172a" strokeWidth="1.5" />
                 <circle cx={pVal.x} cy={pVal.y} r="4.5" fill="#c084fc" stroke="#0f172a" strokeWidth="1.5" />
-                <circle cx={pFric.x} cy={pFric.y} r="4.5" fill="#f59e0b" stroke="#0f172a" strokeWidth="1.5" />
+                <circle cx={pRoe.x} cy={pRoe.y} r="4.5" fill="#f59e0b" stroke="#0f172a" strokeWidth="1.5" />
 
                 {/* Axis Label Text with Scores */}
                 <text x={cx} y={cy - R - 12} textAnchor="middle" className="text-[11px] font-bold fill-sky-300">
@@ -334,13 +352,13 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                   🔊 均量比 {valScore.toFixed(1)}
                 </text>
                 <text x={cx - R - 10} y={cy + 4} textAnchor="end" className="text-[11px] font-bold fill-amber-300">
-                  ⚖️ 成本 {fricScore.toFixed(1)}
+                  💎 獲利 ROE {roeScore.toFixed(1)}
                 </text>
               </svg>
             </div>
 
             <p className="w-full text-[10px] text-slate-500 leading-relaxed">
-              價格指標以還原收盤價計算（資料至 {tech?.asOf ?? '無資料'}）。MACD 為 12/26/9，柱狀體以價格百分比標準化；均量比為 5 日均量對 60 日均量。皆為落後的狀態指標，用於觀察動能與量能，不代表買賣建議。
+              價格與量能指標以還原收盤價計算（資料至 {tech?.asOf ?? '無資料'}）。MACD 為 12/26/9，柱狀體以價格百分比標準化；均量比為 5 日均量對 60 日均量；獲利效益採底層成分股穿透加權 ROE（15% 為優質護城河門檻）。皆為客觀量化指標，不代表買賣建議。
             </p>
 
             {/* Score Legend Grid */}
@@ -362,14 +380,14 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
                 <div className="flex items-center justify-between">
-                  <div className="text-[10px] text-amber-400 font-semibold">⚖️ 實質摩擦友善度</div>
-                  <div className="text-[10px] font-mono font-bold text-amber-300">{fricScore.toFixed(1)} 分</div>
+                  <div className="text-[10px] text-amber-400 font-semibold">💎 穿透加權 ROE</div>
+                  <div className="text-[10px] font-mono font-bold text-amber-300">{roeScore.toFixed(1)} 分</div>
                 </div>
                 <div className="text-base font-bold font-mono text-slate-100 mt-0.5">
-                  年損耗 {currentEtf.totalFrictionPct.toFixed(2)}%
+                  {currentEtf.weightedRoe}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">
-                  TER {currentEtf.terPct.toFixed(2)}% ＋ 健保 {currentEtf.nhiPct.toFixed(3)}%
+                  底層企業資本獲利效率（15% 為優質門檻）
                 </div>
               </div>
             </div>
