@@ -1,65 +1,85 @@
 import history from '../data/etfHistorySnapshot.json';
 
 /**
- * 布林通道四象圖指標（以「還原收盤價」計算，避免除息被誤判成下跌）。
+ * 四象圖技術指標：趨勢、MACD 動能、均量比（成本軸另計）。
+ * 價格類指標一律使用「還原收盤價」，避免除息被誤判成下跌。
  *
- * - 中軌 = 20 日均線；上/下軌 = 中軌 ± 2 倍標準差（母體標準差）
- * - %B = (價格 − 下軌) ÷ (上軌 − 下軌)；0 = 下軌，1 = 上軌
- * - 通道寬度 = (上軌 − 下軌) ÷ 中軌
  * - 趨勢 = 價格相對 60 日均線的乖離率
+ * - MACD：DIF = 12 日 EMA − 26 日 EMA；訊號線 = DIF 的 9 日 EMA；柱狀體 = DIF − 訊號線
+ *   （以柱狀體 ÷ 價格 % 標準化，才能跨不同價位的 ETF 比較）
+ * - 均量比 = 近 5 日平均成交量 ÷ 近 60 日平均成交量
  *
- * 轉成雷達圖 0–100 分的方式（皆為「位置/強度」刻度，非好壞評分）：
- * - posScore   = %B × 100，限制於 0–100
- * - widthScore = 通道寬度 ÷ 20% × 100，限制於 0–100（寬度 20% 為滿格）
+ * 轉成雷達圖 0–100 分的方式（皆為「強度/位置」刻度，非好壞評分）：
  * - trendScore = 50 + 乖離率% × 5，限制於 0–100（乖離 ±10% 為極端）
+ * - macdScore  = 50 + 柱狀體% × 50，限制於 0–100（柱狀體 ±1% 為極端，50 代表柱為 0）
+ * - volScore   = 均量比 × 50，限制於 0–100（1.0 = 50 分，2.0 以上滿格）
  */
 export interface TechnicalMetrics {
   asOf: string;
   price: number;
-  ma20: number;
   ma60: number;
-  upper: number;
-  lower: number;
-  percentB: number;
-  bandwidth: number;
   trendDeviationPct: number;
-  posScore: number;
-  widthScore: number;
+  dif: number;
+  signal: number;
+  histogram: number;
+  histogramPct: number;
+  volRatio: number;
+  avgVol5: number;
+  avgVol60: number;
   trendScore: number;
+  macdScore: number;
+  volScore: number;
 }
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, n));
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-type HistoryFile = { etfs: Record<string, { dates: string[]; adjClose: number[] }> };
+/** 指數移動平均，以第一筆資料為初始值（k = 2 / (n + 1)） */
+function ema(values: number[], period: number): number[] {
+  const k = 2 / (period + 1);
+  const out: number[] = [];
+  values.forEach((v, i) => out.push(i === 0 ? v : v * k + out[i - 1] * (1 - k)));
+  return out;
+}
+
+type HistoryFile = { etfs: Record<string, { dates: string[]; adjClose: number[]; volume?: number[] }> };
 
 export function computeTechnicalMetrics(etfId: string): TechnicalMetrics | null {
   const series = (history as unknown as HistoryFile).etfs[etfId];
   if (!series || series.adjClose.length < 60) return null;
   const px = series.adjClose;
   const last = px[px.length - 1];
-  const w20 = px.slice(-20);
-  const ma20 = mean(w20);
-  const sd = Math.sqrt(mean(w20.map((v) => (v - ma20) ** 2)));
-  const upper = ma20 + 2 * sd;
-  const lower = ma20 - 2 * sd;
   const ma60 = mean(px.slice(-60));
-  const band = upper - lower;
-  const percentB = band > 0 ? (last - lower) / band : 0.5;
-  const bandwidth = ma20 > 0 ? band / ma20 : 0;
   const trendDeviationPct = ((last - ma60) / ma60) * 100;
+
+  const e12 = ema(px, 12);
+  const e26 = ema(px, 26);
+  const difSeries = e12.map((v, i) => v - e26[i]);
+  const signalSeries = ema(difSeries, 9);
+  const difLast = difSeries[difSeries.length - 1];
+  const signalLast = signalSeries[signalSeries.length - 1];
+  const histogram = difLast - signalLast;
+  const histogramPct = (histogram / last) * 100;
+
+  const vol = series.volume ?? [];
+  const avgVol5 = vol.length >= 60 ? mean(vol.slice(-5)) : 0;
+  const avgVol60 = vol.length >= 60 ? mean(vol.slice(-60)) : 0;
+  const volRatio = avgVol60 > 0 ? avgVol5 / avgVol60 : 1;
+
   return {
     asOf: series.dates[series.dates.length - 1],
     price: last,
-    ma20,
     ma60,
-    upper,
-    lower,
-    percentB,
-    bandwidth,
     trendDeviationPct,
-    posScore: clamp(percentB * 100),
-    widthScore: clamp((bandwidth / 0.2) * 100),
+    dif: difLast,
+    signal: signalLast,
+    histogram,
+    histogramPct,
+    volRatio,
+    avgVol5,
+    avgVol60,
     trendScore: clamp(50 + trendDeviationPct * 5),
+    macdScore: clamp(50 + histogramPct * 50),
+    volScore: clamp(volRatio * 50),
   };
 }
