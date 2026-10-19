@@ -24,6 +24,7 @@ import {
   ALL_MARKET_ETF_SHEET_ID,
   normalizeEtfId,
 } from '../services/constituentsFeedService';
+import { BondCard } from './BondCard';
 import { computeTechnicalMetrics } from '../services/technicalService';
 
 interface RadarTabProps {
@@ -246,6 +247,10 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
         </div>
       ) : currentEtf ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {currentEtf.etfId.toUpperCase().endsWith('B') ? (
+            <BondCard etfId={currentEtf.etfId} price={currentEtf.currentPrice} />
+          ) : (
+            <>
           {/* Left Column: 4-Quadrant Radar Chart */}
           <div className="lg:col-span-5 flex flex-col items-center p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
             <div className="flex items-center justify-between w-full border-b border-slate-800 pb-3">
@@ -271,12 +276,6 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 </span>
               </div>
             </div>
-
-            {currentEtf.etfId.toUpperCase().endsWith('B') ? (
-              <p className="w-full text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5">
-                債券 ETF 之後將改用「價格／殖利率／受益人數」看板，目前雷達僅供參考。
-              </p>
-            ) : null}
 
             <div className="relative w-[320px] h-[320px]">
               <svg viewBox="0 0 320 320" className="w-full h-full overflow-visible">
@@ -375,6 +374,9 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               </div>
             </div>
           </div>
+
+            </>
+          )}
 
           {/* Right Column: Profile & Constituents */}
           <div className="lg:col-span-7 space-y-4">
