@@ -26,9 +26,11 @@ export interface TechnicalMetrics {
   volRatio: number;
   avgVol5: number;
   avgVol60: number;
+  totalReturn1Y: number;
   trendScore: number;
   macdScore: number;
   volScore: number;
+  returnScore: number;
 }
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, n));
@@ -66,6 +68,25 @@ export function computeTechnicalMetrics(etfId: string): TechnicalMetrics | null 
   const avgVol60 = vol.length >= 60 ? mean(vol.slice(-60)) : 0;
   const volRatio = avgVol60 > 0 ? avgVol5 / avgVol60 : 1;
 
+  const firstAdj = px[0];
+  const totalReturn1Y = firstAdj > 0 ? ((last - firstAdj) / firstAdj) * 100 : 0;
+
+  // 1Y 含息總回報評分（賺錢實績）：
+  // 0%（保本不賺不賠）為 40 分；負報酬每 -1% 扣 2 分（-20% 以下為 0 分）；
+  // 正報酬：0%~15% 為 40~55 分；15%~35% 為 55~75 分；35%~60% 為 75~90 分；60% 以上為 90~100 分
+  let returnScore = 40;
+  if (totalReturn1Y < 0) {
+    returnScore = clamp(40 + totalReturn1Y * 2, 0, 40);
+  } else if (totalReturn1Y <= 15) {
+    returnScore = 40 + (totalReturn1Y / 15) * 15;
+  } else if (totalReturn1Y <= 35) {
+    returnScore = 55 + ((totalReturn1Y - 15) / 20) * 20;
+  } else if (totalReturn1Y <= 60) {
+    returnScore = 75 + ((totalReturn1Y - 35) / 25) * 15;
+  } else {
+    returnScore = clamp(90 + ((totalReturn1Y - 60) / 40) * 10, 90, 100);
+  }
+
   return {
     asOf: series.dates[series.dates.length - 1],
     price: last,
@@ -78,8 +99,10 @@ export function computeTechnicalMetrics(etfId: string): TechnicalMetrics | null 
     volRatio,
     avgVol5,
     avgVol60,
+    totalReturn1Y,
     trendScore: clamp(50 + trendDeviationPct * 5),
     macdScore: clamp(50 + histogramPct * 50),
     volScore: clamp(volRatio * 50),
+    returnScore: Number(returnScore.toFixed(1)),
   };
 }
