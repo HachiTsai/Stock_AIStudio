@@ -216,27 +216,55 @@ const AppContent: React.FC = () => {
   const handleAddDividend = (record: DividendRecord) => {
     setDividends([record, ...dividends]);
     if (record.reinvestedShares > 0) {
-      setHoldings(
-        holdings.map((h) => {
-          if (h.ticker === record.ticker) {
-            return {
-              ...h,
-              shares: h.shares + record.reinvestedShares,
-              reinvestShares: h.reinvestShares + record.reinvestedShares,
-            };
-          }
-          return h;
-        })
-      );
+      const exists = holdings.some((h) => h.ticker === record.ticker);
+      if (exists) {
+        setHoldings(
+          holdings.map((h) => {
+            if (h.ticker === record.ticker) {
+              return {
+                ...h,
+                shares: h.shares + record.reinvestedShares,
+                reinvestShares: h.reinvestShares + record.reinvestedShares,
+              };
+            }
+            return h;
+          })
+        );
+      } else {
+        // 新持股標的（若以前尚未持有該 ETF，自動納入持股清單）
+        const newHolding: Holding = {
+          id: `holding-${record.ticker}`,
+          ticker: record.ticker,
+          name: record.ticker,
+          shares: record.reinvestedShares,
+          currentPrice: record.reinvestedAmount && record.reinvestedShares > 0
+            ? record.reinvestedAmount / record.reinvestedShares
+            : 15.0,
+          buyTotalCost: 0,
+          buyShares: 0,
+          reinvestShares: record.reinvestedShares,
+          totalFees: 0,
+          annualDividendPerShare: record.dividendPerShare,
+          market: '台股',
+          underlyingDesc: `${record.ticker} 配息再投入部位`,
+          lastUpdated: record.paymentDate,
+        };
+        setHoldings([...holdings, newHolding]);
+      }
+      const existingHolding = holdings.find((h) => h.ticker === record.ticker);
+      const reinvestPrice = record.reinvestedAmount && record.reinvestedShares > 0
+        ? record.reinvestedAmount / record.reinvestedShares
+        : (existingHolding?.currentPrice || mainHolding.currentPrice);
+
       const newTx: Transaction = {
         id: `tx-reinvest-${Date.now()}`,
         ticker: record.ticker,
         date: record.paymentDate,
         type: 'Reinvest',
         shares: record.reinvestedShares,
-        price: mainHolding.currentPrice,
+        price: reinvestPrice,
         fees: 0,
-        notes: `股利入帳後再投入 ${(record.reinvestedShares / 1000).toFixed(0)} 張（零成本）`,
+        notes: `${record.ticker} 股利入帳後再投入 ${(record.reinvestedShares / 1000).toFixed(0)} 張（零成本）`,
       };
       setTransactions([newTx, ...transactions]);
     }
@@ -352,6 +380,7 @@ const AppContent: React.FC = () => {
 
         {activeTab === 'dividends' && (
           <DividendsTab
+            holdings={holdings}
             dividends={dividends}
             onAddDividend={handleAddDividend}
             holding={mainHolding}
