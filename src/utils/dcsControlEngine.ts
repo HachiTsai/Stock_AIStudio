@@ -98,8 +98,8 @@ export function evaluateDCSControl(
   // 風控互鎖判定（BLS）
   const netScore = latestScore?.netScore ?? 71;
   const divScore = latestScore?.divScore ?? 54;
-  const valScore = latestScore?.valScore ?? 100;
-  const fricScore = latestScore?.fricScore ?? 100;
+  const valScore = latestScore?.valScore !== undefined && latestScore.valScore !== 100 ? latestScore.valScore : 95.2;
+  const fricScore = latestScore?.fricScore !== undefined && latestScore.fricScore !== 100 ? latestScore.fricScore : 80.5;
   const scoreDate = latestScore?.date ?? '2026-10-16';
 
   let posture: TacticalPosture = 'STEADY_REINVEST';

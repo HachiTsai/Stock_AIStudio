@@ -370,7 +370,9 @@ const AppContent: React.FC = () => {
           <IntelligenceTab
             signals={signals}
             baseDividendPerShare={mainHolding.annualDividendPerShare}
+            ticker={mainHolding.ticker}
             onApplyScenarioToModel={handleApplyScenarioToModel}
+            onNavigateTab={setActiveTab}
           />
         )}
 
