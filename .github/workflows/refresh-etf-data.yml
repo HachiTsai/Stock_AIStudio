@@ -1,0 +1,42 @@
+name: Refresh ETF data
+
+# 每週一台北時間 18:30（UTC 10:30）更新 ETF 價格/配息/成交量快照與集保受益人數；
+# 有變動時開 PR（不直接推 main）。也可手動觸發。
+on:
+  schedule:
+    - cron: "30 10 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - name: 抓取資料
+        run: npm run fetch:etf
+      - name: 有變動則開 PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- src/data; then
+            echo "資料無變動"
+            exit 0
+          fi
+          branch="chore/refresh-etf-data-$(date -u +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add src/data/etfHistorySnapshot.json src/data/etfHoldersHistory.json
+          git commit -m "chore(data): 每週更新 ETF 價格/配息/成交量與受益人數快照"
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(data): 每週更新 ETF 快照 $(date -u +%Y-%m-%d)" \
+            --body "由 refresh-etf-data workflow 自動產生：更新價格、配息、成交量與集保受益人數快照。"
