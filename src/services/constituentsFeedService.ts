@@ -270,6 +270,84 @@ export interface EtfSummaryRow {
   taxNote: string;
 }
 
+export type MarketCategory = 'all' | 'tw' | 'us' | 'jp' | 'cn' | 'bond';
+
+/**
+ * 自動識別並分類 ETF 之市場屬性：
+ * 1. bond: 債券型（代碼結尾為 B，或名稱/分類含債）
+ * 2. jp: 日股市場（名稱/分類/指數含有日經、東証、日本、商社）
+ * 3. us: 美股市場（S&P、NASDAQ、道瓊、FANG、費城、美國地產等）
+ * 4. cn: 陸港市場（中國、恒生、香港、00882 等）
+ * 5. tw: 台股市場（台股原型、市值型、高股息、半導體、科技、ESG、低碳等）
+ */
+export function classifyEtfMarket(etf: {
+  etfId: string;
+  etfName?: string;
+  category?: string;
+  benchmark?: string;
+}): MarketCategory {
+  const id = (etf.etfId || '').toUpperCase().trim();
+  const name = etf.etfName || '';
+  const cat = etf.category || '';
+  const bm = etf.benchmark || '';
+
+  // 1. 債券型
+  if (id.endsWith('B') || cat.includes('債') || bm.includes('債') || name.includes('債')) {
+    return 'bond';
+  }
+
+  // 2. 日本市場
+  if (
+    cat.includes('日本') ||
+    cat.includes('日經') ||
+    cat.includes('商社') ||
+    bm.includes('日本') ||
+    bm.includes('日經') ||
+    bm.includes('東証') ||
+    bm.includes('商社') ||
+    name.includes('日本') ||
+    name.includes('日經') ||
+    name.includes('商社')
+  ) {
+    return 'jp';
+  }
+
+  // 3. 美股市場
+  if (
+    cat.includes('美國') ||
+    bm.includes('S&P') ||
+    bm.includes('NASDAQ') ||
+    bm.includes('道瓊') ||
+    bm.includes('FANG') ||
+    bm.includes('費城') ||
+    name.includes('S&P') ||
+    name.includes('NASDAQ') ||
+    name.includes('FANG') ||
+    name.includes('費城') ||
+    name.includes('美國') ||
+    id === '00712' // 復華富時不動產（持股主要為美國抵押權 REITs）
+  ) {
+    return 'us';
+  }
+
+  // 4. 陸港市場
+  if (
+    cat.includes('中國') ||
+    cat.includes('香港') ||
+    cat.includes('港') ||
+    bm.includes('中國') ||
+    bm.includes('恒生') ||
+    name.includes('中國') ||
+    name.includes('香港') ||
+    id === '00882'
+  ) {
+    return 'cn';
+  }
+
+  // 5. 其餘台股掛牌標的預設歸屬台股市場
+  return 'tw';
+}
+
 export const ETF_PRICE_SNAPSHOTS: Record<string, number> = {
   '0050': 109.0,
   '0056': 58.75,

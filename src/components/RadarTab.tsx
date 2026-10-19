@@ -23,6 +23,8 @@ import {
   fetchAllMarketConstituents,
   ALL_MARKET_ETF_SHEET_ID,
   normalizeEtfId,
+  classifyEtfMarket,
+  type MarketCategory,
 } from '../services/constituentsFeedService';
 import { BondCard } from './BondCard';
 import { computeTechnicalMetrics } from '../services/technicalService';
@@ -67,33 +69,17 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   }, []);
 
   const filteredSummaries = useMemo(() => {
-    if (marketFilter === 'tw') {
-      return summaries.filter((s) => [
-        '0050', '0056', '00878', '00713', '00919', '00929',
-        '006208', '00692', '00881', '00940', '00939', '00915', '00918'
-      ].includes(s.etfId));
-    }
-    if (marketFilter === 'us') {
-      return summaries.filter((s) => ['00646', '00662', '00757', '00830', '00712'].includes(s.etfId));
-    }
-    if (marketFilter === 'jp') {
-      return summaries.filter((s) => ['00645', '00657', '00661', '00949', '00951', '00954', '00956'].includes(s.etfId));
-    }
-    if (marketFilter === 'bond') {
-      return summaries.filter((s) => s.etfId.toUpperCase().endsWith('B'));
-    }
-    return summaries;
+    if (marketFilter === 'all') return summaries;
+    return summaries.filter((s) => classifyEtfMarket(s) === marketFilter);
   }, [summaries, marketFilter]);
 
   const filterCounts = useMemo(() => {
-    const tw = summaries.filter((s) => [
-      '0050', '0056', '00878', '00713', '00919', '00929',
-      '006208', '00692', '00881', '00940', '00939', '00915', '00918'
-    ].includes(s.etfId)).length;
-    const us = summaries.filter((s) => ['00646', '00662', '00757', '00830', '00712'].includes(s.etfId)).length;
-    const jp = summaries.filter((s) => ['00645', '00657', '00661', '00949', '00951', '00954', '00956'].includes(s.etfId)).length;
-    const bond = summaries.filter((s) => s.etfId.toUpperCase().endsWith('B')).length;
-    return { all: summaries.length, tw, us, jp, bond };
+    const counts: Record<string, number> = { all: summaries.length, tw: 0, us: 0, jp: 0, cn: 0, bond: 0 };
+    summaries.forEach((s) => {
+      const cat = classifyEtfMarket(s);
+      if (cat in counts) counts[cat]++;
+    });
+    return counts;
   }, [summaries]);
 
   // 當市場分類切換時，若原先選取的標的不在當前過濾清單中，自動平滑切換至第一檔標的
@@ -189,11 +175,12 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
           {/* Quick Filter Buttons */}
           <div className="flex flex-wrap items-center gap-2">
             {[
-              { id: 'all', label: `全部標的 (${filterCounts.all || summaries.length || 35})` },
-              { id: 'tw', label: `台股高息/大盤 (${filterCounts.tw || 13})` },
-              { id: 'us', label: `美股市場 (${filterCounts.us || 5})` },
-              { id: 'jp', label: `日股市場 (${filterCounts.jp || 7})` },
-              { id: 'bond', label: `公債/債券 (${filterCounts.bond || 9})` },
+              { id: 'all', label: `全部標的 (${filterCounts.all || summaries.length})` },
+              { id: 'tw', label: `台股市場 (${filterCounts.tw || 0})` },
+              { id: 'us', label: `美股市場 (${filterCounts.us || 0})` },
+              { id: 'jp', label: `日股市場 (${filterCounts.jp || 0})` },
+              { id: 'cn', label: `中港市場 (${filterCounts.cn || 0})` },
+              { id: 'bond', label: `公債/債券 (${filterCounts.bond || 0})` },
             ].map((f) => (
               <button
                 key={f.id}
