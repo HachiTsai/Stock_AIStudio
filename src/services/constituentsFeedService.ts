@@ -166,8 +166,8 @@ export interface EtfTaxFeeMetrics {
 
 /** 二代健保補充保費費率 */
 const NHI_RATE = 0.0211;
-/** 00882 配息中屬大陸地區營利所得（需課二代健保）的比例；其餘海外所得免課 */
-const ETF_00882_TAXABLE_RATIO = 0.3436;
+/** 00882 配息中屬大陸地區營利所得（需課二代健保）的比例；其餘海外所得免課（2026/1 為 48.89%、2026/7 為 34.36%，近一年加權平均約 40.54%） */
+const ETF_00882_TAXABLE_RATIO = 0.4054;
 /** 配息來自境內所得、需課二代健保的台股 ETF */
 const DOMESTIC_NHI_ETFS = new Set([
   '0050', '0056', '006208', '00692', '00713', '00878', '00881',
@@ -204,7 +204,7 @@ function buildTaxFeeMetrics(id: string): EtfTaxFeeMetrics {
   let taxNote: string;
   if (id === '00882') {
     nhiPct = yld * 100 * ETF_00882_TAXABLE_RATIO * NHI_RATE;
-    taxNote = '★ 僅 34.36% 大陸營利所得課 2.11% 二代健保，65.64% 海外所得免課';
+    taxNote = '★ 兩期加權約 40.54% 大陸營利所得課 2.11% 二代健保，約 59.46% 海外所得免課';
   } else if (DOMESTIC_NHI_ETFS.has(id)) {
     nhiPct = yld * 100 * NHI_RATE;
     taxNote = '境內所得配息課 2.11% 二代健保（以近 12 月配息殖利率估算），股票證交稅 0.1%';

@@ -103,7 +103,9 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
             <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
               {maskTWD(totalNhi)} <span className="text-xs text-slate-500 font-normal">TWD</span>
             </div>
-            <span className="text-[11px] text-slate-500">扣除率約 0.72%（依認列營利所得比例）</span>
+            <span className="text-[11px] text-slate-500">
+              實質扣除率約 {totalGross > 0 ? (totalNhi / totalGross * 100).toFixed(2) : '0.86'}%（依認列營利所得比例）
+            </span>
           </div>
         </div>
 
@@ -114,7 +116,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
             <span>規則 8 & 9：二代健保補充保費（2.11%）機制解析</span>
           </div>
           <p className="text-slate-400 leading-relaxed">
-            • <strong>各期應扣繳比例不固定</strong>：以 00882 為例，2026/1 扣除額為 0（所得皆不屬應扣繳課稅項目）；2026/7 證交所將當期股利中的 54,810（佔 34.36%）列為大陸地區營利所得，依 2.11% 扣繳 1,156 TWD。<br />
+            • <strong>各期應扣繳比例不固定</strong>：以 00882 為例，2026/1 大陸地區營利所得 57,640（佔 48.89%），依 2.11% 扣繳 1,216 TWD；2026/7 大陸地區營利所得 54,810（佔 34.36%），依 2.11% 扣繳 1,156 TWD。<br />
             • <strong>模型不套用死板固定扣除率</strong>：推估時以「配息總額」展示，目標檢核時以「實到現金流」為準。
           </p>
         </div>
