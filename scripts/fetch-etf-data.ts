@@ -1,5 +1,5 @@
 /**
- * 抓取 35 檔 ETF 的 1 年日線（含還原收盤價）、配息，以及集保每週受益人數，
+ * 抓取 35 檔 ETF 的 1 年日線（含還原收盤價、成交量）、配息，以及集保每週受益人數，
  * 寫入 src/data/etfHistorySnapshot.json 與 src/data/etfHoldersHistory.json。
  *
  * 用法：npx tsx scripts/fetch-etf-data.ts
@@ -27,6 +27,7 @@ interface EtfHistory {
   dates: string[];
   close: number[];
   adjClose: number[];
+  volume: number[];
   dividends: { date: string; amount: number }[];
 }
 
@@ -47,14 +48,16 @@ async function fetchHistory(id: string): Promise<EtfHistory | null> {
         const ts: number[] | undefined = res?.timestamp;
         const closes: (number | null)[] | undefined = res?.indicators?.quote?.[0]?.close;
         const adj: (number | null)[] | undefined = res?.indicators?.adjclose?.[0]?.adjclose;
+        const vols: (number | null)[] | undefined = res?.indicators?.quote?.[0]?.volume;
         if (!ts || !closes) break;
-        const out: EtfHistory = { symbol: id + suffix, dates: [], close: [], adjClose: [], dividends: [] };
+        const out: EtfHistory = { symbol: id + suffix, dates: [], close: [], adjClose: [], volume: [], dividends: [] };
         ts.forEach((t, i) => {
           const c = closes[i];
           if (c == null) return;
           out.dates.push(toDate(t));
           out.close.push(round(c));
           out.adjClose.push(round(adj?.[i] ?? c));
+          out.volume.push(Math.round(vols?.[i] ?? 0));
         });
         for (const d of Object.values<any>(res?.events?.dividends ?? {})) {
           out.dividends.push({ date: toDate(d.date), amount: round(d.amount) });
