@@ -11,6 +11,7 @@ import {
 } from './data/initialData';
 import { fetchSignalsFeed, fetchScoreHistory, ScorePoint } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
+import { fetchLiveEtfQuotes } from './services/constituentsFeedService';
 import { Holding, DividendRecord, Transaction, IntelligenceSignal } from './types/portfolio';
 import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
@@ -142,6 +143,39 @@ const AppContent: React.FC = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 自動向伺服器同步持股標的的最新即時報價，確保總覽概況「現價行情」與即時報價 100% 同步
+  useEffect(() => {
+    const tickers = holdings.map((h) => h.ticker);
+    if (tickers.length === 0) return;
+    let cancelled = false;
+
+    fetchLiveEtfQuotes(tickers)
+      .then((quotes) => {
+        if (cancelled) return;
+        setHoldings((prev) =>
+          prev.map((h) => {
+            const q = quotes[h.ticker];
+            if (q && q.price > 0 && (q.price !== h.currentPrice || !h.lastUpdated)) {
+              const dateStr = q.time ? q.time.slice(0, 10) : h.lastUpdated;
+              return {
+                ...h,
+                currentPrice: q.price,
+                lastUpdated: dateStr,
+              };
+            }
+            return h;
+          })
+        );
+      })
+      .catch((err) => {
+        console.warn('同步持股即時報價失敗，沿用快照價格:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [holdings.length]);
 
   // External scenario bridged from Intelligence Hub to 3D Target Model
   const [externalScenario, setExternalScenario] = useState<{
