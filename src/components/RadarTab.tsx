@@ -18,6 +18,8 @@ import {
   EtfSummaryRow,
   EtfConstituentRow,
   fetchAllMarketSummary,
+  fetchLiveEtfQuotes,
+  type LiveEtfQuote,
   fetchAllMarketConstituents,
   ALL_MARKET_ETF_SHEET_ID,
   normalizeEtfId,
@@ -34,6 +36,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const [error, setError] = useState<string | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string>(initialTicker);
   const [marketFilter, setMarketFilter] = useState<string>('all');
+  const [liveQuotes, setLiveQuotes] = useState<Record<string, LiveEtfQuote>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +49,9 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
         setSummaries(sums);
         setConstituents(consts);
         setLoading(false);
+        fetchLiveEtfQuotes(sums.map((x) => x.etfId)).then((q) => {
+          if (!cancelled) setLiveQuotes(q);
+        });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -102,14 +108,23 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
 
   const currentEtf = useMemo(() => {
     const target = normalizeEtfId(selectedTicker);
-    return (
+    const base =
       filteredSummaries.find((s) => normalizeEtfId(s.etfId) === target) ||
       summaries.find((s) => normalizeEtfId(s.etfId) === target) ||
       filteredSummaries[0] ||
       summaries[0] ||
-      null
-    );
-  }, [filteredSummaries, summaries, selectedTicker]);
+      null;
+    if (!base) return null;
+    const live = liveQuotes[base.etfId];
+    if (!live) return { ...base, priceSource: 'snapshot' as const };
+    return {
+      ...base,
+      currentPrice: live.price,
+      priceSource: 'live' as const,
+      priceTime: live.time,
+      priceChangePct: live.changePct,
+    };
+  }, [filteredSummaries, summaries, selectedTicker, liveQuotes]);
 
   const currentConstituents = useMemo(() => {
     if (!currentEtf) return [];
@@ -236,8 +251,16 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               </span>
               <div className="flex items-center space-x-2">
                 {currentEtf.currentPrice ? (
-                  <span className="text-xs font-mono font-bold text-slate-200 bg-slate-800/90 px-2.5 py-0.5 rounded-lg border border-slate-700">
-                    市價 ${currentEtf.currentPrice.toFixed(2)}
+                  <span
+                    className="text-xs font-mono font-bold text-slate-200 bg-slate-800/90 px-2.5 py-0.5 rounded-lg border border-slate-700"
+                    title={currentEtf.priceSource === 'live' && currentEtf.priceTime ? `報價時間 ${new Date(currentEtf.priceTime).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}（Yahoo Finance，可能延遲）` : '快照價格，非即時'}
+                  >
+                    {currentEtf.priceSource === 'live' ? '🟢 即時' : '⚪ 快照'} ${currentEtf.currentPrice.toFixed(2)}
+                    {currentEtf.priceSource === 'live' && typeof currentEtf.priceChangePct === 'number' ? (
+                      <span className={currentEtf.priceChangePct >= 0 ? 'text-rose-400 ml-1' : 'text-emerald-400 ml-1'}>
+                        {currentEtf.priceChangePct >= 0 ? '+' : ''}{currentEtf.priceChangePct.toFixed(2)}%
+                      </span>
+                    ) : null}
                   </span>
                 ) : null}
                 <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-lg border border-cyan-500/20">

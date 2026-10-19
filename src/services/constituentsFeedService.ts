@@ -216,6 +216,9 @@ export interface EtfSummaryRow {
   etfId: string;
   etfName: string;
   currentPrice?: number;
+  priceSource?: 'live' | 'snapshot';
+  priceTime?: string;
+  priceChangePct?: number;
   exchange: string;
   category: string;
   benchmark: string;
@@ -417,3 +420,29 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
 }
 
 
+export interface LiveEtfQuote {
+  id: string;
+  price: number;
+  previousClose: number;
+  change: number;
+  changePct: number;
+  time: string;
+  symbol: string;
+}
+
+/**
+ * 向本專案伺服器取得即時報價；伺服器不可用或失敗時回傳空物件，
+ * 呼叫端應退回 Sheets / 本機快照價格。
+ */
+export async function fetchLiveEtfQuotes(ids: string[]): Promise<Record<string, LiveEtfQuote>> {
+  if (ids.length === 0) return {};
+  try {
+    const res = await fetch(`/api/etf-quotes?tickers=${encodeURIComponent(ids.join(','))}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return (json?.quotes ?? {}) as Record<string, LiveEtfQuote>;
+  } catch (err) {
+    console.warn('即時報價載入失敗，沿用快照價格:', err);
+    return {};
+  }
+}
