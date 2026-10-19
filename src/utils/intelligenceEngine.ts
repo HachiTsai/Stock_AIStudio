@@ -5,6 +5,8 @@ import {
   SignalSourceType, 
   ExtractedMetric 
 } from '../types/portfolio';
+import { ETF_TAX_FEE_MAP } from '../services/constituentsFeedService';
+import { ALL_MARKET_SUMMARY_FALLBACK } from '../data/allMarketEtfSnapshot';
 
 // Subjective hype/panic phrases to strip in deterministic rule parser
 const NOISE_WORDS_REGEX = /專家強烈看好|無腦買進|散戶恐慌|飆漲|暴跌|上看|外資狂買|必買|崩盤|完美買點|閉眼買/g;
@@ -226,10 +228,24 @@ export function extractSignalByRules(
   };
 }
 
+export interface ObjectiveDimensionStat {
+  bullWeight: number;
+  bearWeight: number;
+  count: number;
+  netScore: number;
+  radarBaseScore: number;
+  signalSupportPct: number;
+  benchmarkDescription: string;
+}
+
 /**
  * Deterministic Statistical Trend Synthesis Engine
  */
-export function synthesizeObjectiveTrends(signals: IntelligenceSignal[], baseDividend: number = 1.00) {
+export function synthesizeObjectiveTrends(
+  signals: IntelligenceSignal[], 
+  baseDividend: number = 1.00,
+  targetTicker: string = '00882'
+) {
   let bullWeight = 0;
   let bearWeight = 0;
   let neutralWeight = 0;
@@ -238,13 +254,42 @@ export function synthesizeObjectiveTrends(signals: IntelligenceSignal[], baseDiv
   let bearCount = 0;
   let neutralCount = 0;
 
-  const dimStats: Record<
-    SignalDimension,
-    { bullWeight: number; bearWeight: number; count: number; netScore: number }
-  > = {
-    dividend_sustainability: { bullWeight: 0, bearWeight: 0, count: 0, netScore: 50 },
-    valuation_margin: { bullWeight: 0, bearWeight: 0, count: 0, netScore: 50 },
-    friction_fx: { bullWeight: 0, bearWeight: 0, count: 0, netScore: 50 },
+  // 取得目標標的在全市場四象圖與基本面體檢庫之客觀基準指標
+  const summary = ALL_MARKET_SUMMARY_FALLBACK.find((s) => s.etf_id === targetTicker);
+  const taxMetrics = ETF_TAX_FEE_MAP[targetTicker];
+
+  const baseDivScore = summary?.div_score ? Number(summary.div_score) : 66.5;
+  const baseValScore = summary?.val_score ? Number(summary.val_score) : 95.2;
+  const baseFricScore = taxMetrics?.fricScore ?? (summary?.fric_score ? Number(summary.fric_score) : 80.5);
+
+  const dimStats: Record<SignalDimension, ObjectiveDimensionStat> = {
+    dividend_sustainability: {
+      bullWeight: 0,
+      bearWeight: 0,
+      count: 0,
+      netScore: baseDivScore,
+      radarBaseScore: baseDivScore,
+      signalSupportPct: 50,
+      benchmarkDescription: `四象圖基準：${summary?.constituent_count || 49} 檔成分股加權分紅狀況（基準 ${baseDivScore.toFixed(1)} 分）`,
+    },
+    valuation_margin: {
+      bullWeight: 0,
+      bearWeight: 0,
+      count: 0,
+      netScore: baseValScore,
+      radarBaseScore: baseValScore,
+      signalSupportPct: 50,
+      benchmarkDescription: `四象圖基準：高殖利率位階與折價安全邊際（基準 ${baseValScore.toFixed(1)} 分）`,
+    },
+    friction_fx: {
+      bullWeight: 0,
+      bearWeight: 0,
+      count: 0,
+      netScore: baseFricScore,
+      radarBaseScore: baseFricScore,
+      signalSupportPct: 50,
+      benchmarkDescription: `四象圖基準：實質年損耗 ${taxMetrics ? taxMetrics.totalFrictionPct.toFixed(2) : '0.99'}%（TER ${taxMetrics ? taxMetrics.terPct.toFixed(2) : '0.93'}% + 二代健保實質負擔）`,
+    },
   };
 
   let weightedShiftSum = 0;
@@ -271,15 +316,14 @@ export function synthesizeObjectiveTrends(signals: IntelligenceSignal[], baseDiv
     }
   });
 
-  // Compute dimension net scores (0 ~ 100, 50 = neutral)
+  // Compute dimension net scores (連動四象圖量化基準，並依正反證據邊際動態合成)
   (Object.keys(dimStats) as SignalDimension[]).forEach((dim) => {
     const d = dimStats[dim];
     const total = d.bullWeight + d.bearWeight;
-    if (total > 0) {
-      d.netScore = Math.round((d.bullWeight / total) * 100);
-    } else {
-      d.netScore = 50;
-    }
+    d.signalSupportPct = total > 0 ? Math.round((d.bullWeight / total) * 100) : 50;
+    // 依累積情報之正反證據權重進行微調校準（±2.5 分以內，忠實反映情報邊際效應同時錨定四象圖基準）
+    const shift = total > 0 ? ((d.bullWeight - d.bearWeight) / total) * 1.5 : 0;
+    d.netScore = Number(Math.min(100, Math.max(0, d.radarBaseScore + shift)).toFixed(1));
   });
 
   const totalDirectionalWeight = bullWeight + bearWeight;
