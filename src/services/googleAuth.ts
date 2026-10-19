@@ -12,7 +12,6 @@ import firebaseConfig from '../../firebase-applet-config.json';
 export const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.readonly',
   'https://www.googleapis.com/auth/drive.readonly',
-  'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/documents.readonly',
   'https://www.googleapis.com/auth/presentations.readonly',
 ];
