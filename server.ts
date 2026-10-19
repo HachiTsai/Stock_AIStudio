@@ -83,6 +83,65 @@ async function startServer() {
     }
   });
 
+  // Endpoint 0b: Batch ETF quotes (server-side cache to avoid Yahoo rate limits; .TW then .TWO fallback)
+  const QUOTE_CACHE_TTL_MS = 60_000;
+  const quoteCache = new Map<string, { at: number; data: any }>();
+  const YAHOO_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+  };
+
+  const fetchOneQuote = async (id: string) => {
+    const cached = quoteCache.get(id);
+    if (cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
+    for (const suffix of ['.TW', '.TWO']) {
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(id + suffix)}?interval=1d&range=1d`,
+          { headers: YAHOO_HEADERS }
+        );
+        if (!r.ok) continue;
+        const meta = (await r.json())?.chart?.result?.[0]?.meta;
+        if (!meta || typeof meta.regularMarketPrice !== 'number') continue;
+        const price = Number(meta.regularMarketPrice.toFixed(2));
+        const prev = meta.chartPreviousClose || meta.previousClose || price;
+        const data = {
+          id,
+          price,
+          previousClose: prev,
+          change: Number((price - prev).toFixed(2)),
+          changePct: prev > 0 ? Number((((price - prev) / prev) * 100).toFixed(2)) : 0,
+          time: typeof meta.regularMarketTime === 'number' ? new Date(meta.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
+          symbol: id + suffix,
+        };
+        quoteCache.set(id, { at: Date.now(), data });
+        return data;
+      } catch {
+        // try next suffix
+      }
+    }
+    return null;
+  };
+
+  app.get('/api/etf-quotes', async (req, res) => {
+    const ids = String(req.query.tickers || '')
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => /^[0-9A-Z]{4,7}$/.test(s))
+      .slice(0, 60);
+    const quotes: Record<string, any> = {};
+    const queue = [...ids];
+    const worker = async () => {
+      while (queue.length) {
+        const id = queue.shift()!;
+        const q = await fetchOneQuote(id);
+        if (q) quotes[id] = q;
+      }
+    };
+    await Promise.all(Array.from({ length: 5 }, worker));
+    res.json({ quotes, fetchedAt: new Date().toISOString(), requested: ids.length, resolved: Object.keys(quotes).length });
+  });
+
   // Endpoint 1: Fetch webpage text from a URL (bypasses browser CORS for rule-based or AI extraction)
   app.post('/api/intelligence/fetch-url', async (req, res) => {
     try {
