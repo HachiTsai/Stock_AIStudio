@@ -98,6 +98,9 @@ export function cleanHtmlEntities(str: string): string {
     .trim();
 }
 
+import priceHistory from '../data/etfHistorySnapshot.json';
+import { ETF_FEES } from '../data/etfFees';
+
 export const ETF_NAME_TO_ID: Record<string, string> = {
   '元大台灣50': '0050',
   '元大高股息': '0056',
@@ -155,52 +158,71 @@ export interface EtfTaxFeeMetrics {
   taxNote: string;
 }
 
-export const ETF_TAX_FEE_MAP: Record<string, EtfTaxFeeMetrics> = {
-  // 台股高息/大盤 (13)
-  '0050': { terPct: 0.43, nhiPct: 0.068, stampTaxPct: 0.10, totalFrictionPct: 0.50, costPerMillion: 4980, fricScore: 88.0, taxNote: '境內 54C 課健保，股票證交稅 0.1%' },
-  '0056': { terPct: 0.65, nhiPct: 0.117, stampTaxPct: 0.10, totalFrictionPct: 0.77, costPerMillion: 7670, fricScore: 81.0, taxNote: '境內高息 54C 課健保，股票證交稅 0.1%' },
-  '006208': { terPct: 0.25, nhiPct: 0.064, stampTaxPct: 0.10, totalFrictionPct: 0.31, costPerMillion: 3140, fricScore: 93.0, taxNote: '低經理費優勢，54C 課健保，股票證交稅 0.1%' },
-  '00692': { terPct: 0.35, nhiPct: 0.076, stampTaxPct: 0.10, totalFrictionPct: 0.43, costPerMillion: 4260, fricScore: 90.0, taxNote: '公司治理 54C 課健保，股票證交稅 0.1%' },
-  '00713': { terPct: 0.62, nhiPct: 0.095, stampTaxPct: 0.10, totalFrictionPct: 0.72, costPerMillion: 7150, fricScore: 82.0, taxNote: '高息低波 54C 課健保，股票證交稅 0.1%' },
-  '00878': { terPct: 0.46, nhiPct: 0.101, stampTaxPct: 0.10, totalFrictionPct: 0.56, costPerMillion: 5610, fricScore: 86.0, taxNote: '永續高息 54C 課健保，股票證交稅 0.1%' },
-  '00881': { terPct: 0.55, nhiPct: 0.080, stampTaxPct: 0.10, totalFrictionPct: 0.63, costPerMillion: 6300, fricScore: 84.0, taxNote: '科技龍頭 54C 課健保，股票證交稅 0.1%' },
-  '00915': { terPct: 0.58, nhiPct: 0.110, stampTaxPct: 0.10, totalFrictionPct: 0.69, costPerMillion: 6900, fricScore: 83.0, taxNote: '優選高息 54C 課健保，股票證交稅 0.1%' },
-  '00918': { terPct: 0.60, nhiPct: 0.125, stampTaxPct: 0.10, totalFrictionPct: 0.73, costPerMillion: 7250, fricScore: 82.0, taxNote: '高填息 54C 課健保，股票證交稅 0.1%' },
-  '00919': { terPct: 0.68, nhiPct: 0.116, stampTaxPct: 0.10, totalFrictionPct: 0.80, costPerMillion: 7960, fricScore: 80.0, taxNote: '精選高息 54C 課健保，股票證交稅 0.1%' },
-  '00929': { terPct: 0.52, nhiPct: 0.120, stampTaxPct: 0.10, totalFrictionPct: 0.64, costPerMillion: 6400, fricScore: 84.0, taxNote: '科技高息 54C 課健保，股票證交稅 0.1%' },
-  '00939': { terPct: 0.56, nhiPct: 0.090, stampTaxPct: 0.10, totalFrictionPct: 0.65, costPerMillion: 6500, fricScore: 84.0, taxNote: '高息動能 54C 課健保，股票證交稅 0.1%' },
-  '00940': { terPct: 0.48, nhiPct: 0.085, stampTaxPct: 0.10, totalFrictionPct: 0.57, costPerMillion: 5650, fricScore: 86.0, taxNote: '價值高息 54C 課健保，股票證交稅 0.1%' },
+/** 二代健保補充保費費率 */
+const NHI_RATE = 0.0211;
+/** 00882 配息中屬大陸地區營利所得（需課二代健保）的比例；其餘海外所得免課 */
+const ETF_00882_TAXABLE_RATIO = 0.3436;
+/** 配息來自境內所得、需課二代健保的台股 ETF */
+const DOMESTIC_NHI_ETFS = new Set([
+  '0050', '0056', '006208', '00692', '00713', '00878', '00881',
+  '00915', '00918', '00919', '00929', '00939', '00940',
+]);
 
-  // 00882 (定錨規則)
-  '00882': { terPct: 0.90, nhiPct: 0.049, stampTaxPct: 0.10, totalFrictionPct: 0.95, costPerMillion: 9490, fricScore: 85.0, taxNote: '★ 僅 34.36% 大陸營利所得課二代健保，65.64% 海外所得免課' },
+/** 近 12 個月配息殖利率（小數）；無快照時回傳 0 */
+function trailingYield(id: string): number {
+  const s = (priceHistory as unknown as {
+    etfs: Record<string, { dates: string[]; close: number[]; dividends: { date: string; amount: number }[] }>;
+  }).etfs[id];
+  if (!s || s.close.length === 0) return 0;
+  const asOf = new Date(s.dates[s.dates.length - 1]);
+  asOf.setDate(asOf.getDate() - 365);
+  const cutoff = asOf.toISOString().slice(0, 10);
+  // Yahoo 偶爾重複回報相鄰兩天同金額配息，3 天內同金額視為重複
+  const dedup = s.dividends.filter((d, i, arr) => {
+    const p = arr[i - 1];
+    if (!p || p.amount !== d.amount) return true;
+    return (new Date(d.date).getTime() - new Date(p.date).getTime()) / 86_400_000 > 3;
+  });
+  const total = dedup.filter((d) => d.date > cutoff).reduce((a, d) => a + d.amount, 0);
+  return total / s.close[s.close.length - 1];
+}
 
-  // 美股市場 (5)
-  '00646': { terPct: 0.41, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.41, costPerMillion: 4100, fricScore: 90.0, taxNote: '標普500，海外所得 76 完全免二代健保' },
-  '00662': { terPct: 0.52, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.52, costPerMillion: 5200, fricScore: 87.0, taxNote: 'NASDAQ-100，海外所得 76 完全免二代健保' },
-  '00757': { terPct: 0.88, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.88, costPerMillion: 8800, fricScore: 78.0, taxNote: 'FANG+ 尖牙股，海外所得 76 完全免二代健保' },
-  '00830': { terPct: 0.65, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.65, costPerMillion: 6500, fricScore: 84.0, taxNote: '費城半導體，海外所得 76 完全免二代健保' },
-  '00712': { terPct: 0.75, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.75, costPerMillion: 7500, fricScore: 81.0, taxNote: '富時不動產，海外所得 76 完全免二代健保' },
+function buildTaxFeeMetrics(id: string): EtfTaxFeeMetrics {
+  const fee = ETF_FEES[id];
+  const isBond = id.toUpperCase().endsWith('B');
+  const terPct = fee ? fee.totalExpensePct : 0.5;
+  const stampTaxPct = isBond ? 0.0 : 0.1;
+  const yld = trailingYield(id);
+  let nhiPct = 0;
+  let taxNote: string;
+  if (id === '00882') {
+    nhiPct = yld * 100 * ETF_00882_TAXABLE_RATIO * NHI_RATE;
+    taxNote = '★ 僅 34.36% 大陸營利所得課 2.11% 二代健保，65.64% 海外所得免課';
+  } else if (DOMESTIC_NHI_ETFS.has(id)) {
+    nhiPct = yld * 100 * NHI_RATE;
+    taxNote = '境內所得配息課 2.11% 二代健保（以近 12 月配息殖利率估算），股票證交稅 0.1%';
+  } else if (isBond) {
+    taxNote = '海外所得免二代健保，債券依法停徵證交稅';
+  } else {
+    taxNote = '海外所得免二代健保，股票證交稅 0.1%';
+  }
+  if (fee?.note) taxNote += `；${fee.note}`;
+  const totalFrictionPct = terPct + nhiPct;
+  return {
+    terPct: Number(terPct.toFixed(2)),
+    nhiPct: Number(nhiPct.toFixed(3)),
+    stampTaxPct,
+    totalFrictionPct: Number(totalFrictionPct.toFixed(2)),
+    costPerMillion: Math.round(totalFrictionPct * 10000),
+    // 成本友善度：年損耗 0% = 100 分，每增加 1% 扣 20 分
+    fricScore: Number(Math.min(100, Math.max(0, 100 - totalFrictionPct * 20)).toFixed(1)),
+    taxNote,
+  };
+}
 
-  // 日股市場 (7)
-  '00645': { terPct: 0.58, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.58, costPerMillion: 5800, fricScore: 86.0, taxNote: '日股東證，海外所得 76 完全免二代健保' },
-  '00657': { terPct: 0.62, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.62, costPerMillion: 6200, fricScore: 85.0, taxNote: '日經225，海外所得 76 完全免二代健保' },
-  '00661': { terPct: 0.60, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.60, costPerMillion: 6000, fricScore: 85.0, taxNote: '元大日經，海外所得 76 完全免二代健保' },
-  '00949': { terPct: 0.65, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.65, costPerMillion: 6500, fricScore: 84.0, taxNote: '日本龍頭，海外所得 76 完全免二代健保' },
-  '00951': { terPct: 0.68, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.68, costPerMillion: 6800, fricScore: 83.0, taxNote: '日本半導體，海外所得 76 完全免二代健保' },
-  '00954': { terPct: 0.68, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.68, costPerMillion: 6800, fricScore: 83.0, taxNote: '中信日半，海外所得 76 完全免二代健保' },
-  '00956': { terPct: 0.66, nhiPct: 0.00, stampTaxPct: 0.10, totalFrictionPct: 0.66, costPerMillion: 6600, fricScore: 84.0, taxNote: '日經高股息，海外所得 76 完全免二代健保' },
-
-  // 公債 / 債券 (9)
-  '00679B': { terPct: 0.14, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.14, costPerMillion: 1400, fricScore: 98.0, taxNote: '美債20年，海外所得免健保，債券依法停徵證交稅' },
-  '00687B': { terPct: 0.14, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.14, costPerMillion: 1400, fricScore: 98.0, taxNote: '20年美債，海外所得免健保，債券依法停徵證交稅' },
-  '00710B': { terPct: 0.45, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.45, costPerMillion: 4500, fricScore: 91.0, taxNote: '非投等債，海外所得免健保，債券依法停徵證交稅' },
-  '00720B': { terPct: 0.22, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.22, costPerMillion: 2200, fricScore: 96.0, taxNote: '投資級公司債，海外所得免健保，債券依法停徵證交稅' },
-  '00751B': { terPct: 0.20, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.20, costPerMillion: 2000, fricScore: 97.0, taxNote: 'AAA至A公司債，海外所得免健保，債券依法停徵證交稅' },
-  '00772B': { terPct: 0.22, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.22, costPerMillion: 2200, fricScore: 96.0, taxNote: '高評級公司債，海外所得免健保，債券依法停徵證交稅' },
-  '00933B': { terPct: 0.24, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.24, costPerMillion: 2400, fricScore: 95.0, taxNote: '金融債，海外所得免健保，債券依法停徵證交稅' },
-  '00937B': { terPct: 0.25, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.25, costPerMillion: 2500, fricScore: 95.0, taxNote: 'ESG投等債20+，海外所得免健保，債券依法停徵證交稅' },
-  '00945B': { terPct: 0.48, nhiPct: 0.00, stampTaxPct: 0.00, totalFrictionPct: 0.48, costPerMillion: 4800, fricScore: 90.0, taxNote: '美國非投等債，海外所得免健保，債券依法停徵證交稅' },
-};
+export const ETF_TAX_FEE_MAP: Record<string, EtfTaxFeeMetrics> = Object.fromEntries(
+  [...new Set(Object.values(ETF_NAME_TO_ID))].map((id) => [id, buildTaxFeeMetrics(id)])
+);
 
 export interface EtfConstituentRow {
   etfId: string;
