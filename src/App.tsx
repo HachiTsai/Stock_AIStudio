@@ -28,7 +28,24 @@ const AppContent: React.FC = () => {
   // Dividends state
   const [dividends, setDividends] = useState<DividendRecord[]>(() => {
     const saved = localStorage.getItem('inv_dividends');
-    return saved ? JSON.parse(saved) : INITIAL_DIVIDENDS;
+    if (!saved) return INITIAL_DIVIDENDS;
+    try {
+      const parsed: DividendRecord[] = JSON.parse(saved);
+      // 自動升級：若本機快照中 00882 的 2026-01 配息尚未更新二代健保扣繳，自動升級為實證金額
+      return parsed.map((d) => {
+        if (d.id === 'div-2026-01' && (d.nhiTaxAmount === 0 || d.netAmount === 117900)) {
+          return {
+            ...d,
+            nhiTaxAmount: 1216,
+            netAmount: 116684,
+            notes: '1 月除息 0.45，給付總額 117,900，其中大陸營利所得 57,640 (48.89%) 扣繳二代健保 1,216，實收 116,684。',
+          };
+        }
+        return d;
+      });
+    } catch {
+      return INITIAL_DIVIDENDS;
+    }
   });
 
   // Transactions state
