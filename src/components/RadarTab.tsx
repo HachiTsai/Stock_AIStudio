@@ -143,10 +143,10 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const R = 105;
 
   const tech = useMemo(() => (currentEtf ? computeTechnicalMetrics(currentEtf.etfId) : null), [currentEtf?.etfId]);
-  // 四軸：上=趨勢、右=位置(%B)、下=波動(通道寬度)、左=成本友善
+  // 四軸：上=趨勢、右=MACD 動能、下=均量比、左=成本友善
   const netScore = tech ? tech.trendScore : 50;
-  const divScore = tech ? tech.posScore : 50;
-  const valScore = tech ? tech.widthScore : 50;
+  const divScore = tech ? tech.macdScore : 50;
+  const valScore = tech ? tech.volScore : 50;
   const fricScore = currentEtf ? Math.min(100, Math.max(0, currentEtf.fricScore)) : 50;
 
   // Vertex points
@@ -162,8 +162,8 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const areaPct = Math.round(area * 100);
 
   // Status badge
-  const isYieldTrapRisk = !!tech && tech.percentB < 0;
-  const isRobustPrime = !!tech && tech.percentB > 1;
+  const isYieldTrapRisk = !!tech && tech.histogram < 0 && tech.dif < 0;
+  const isRobustPrime = !!tech && tech.histogram > 0 && tech.dif > 0;
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -175,13 +175,13 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-xs font-semibold">
               <Radar className="w-3.5 h-3.5" />
-              <span>布林通道技術面與成本雷達</span>
+              <span>動能技術面與成本雷達</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
               全市場 ETF 穿透體檢與量化評分矩陣
             </h1>
             <p className="text-sm text-slate-400 leading-relaxed">
-              以還原收盤價計算布林通道，依據趨勢（相對 60 日均線）、位置（%B）、波動（通道寬度）與實質持有成本繪製四象雷達，一眼看出目前價格相對近期波動的位置。
+              以還原收盤價計算，依據趨勢（相對 60 日均線）、MACD 動能、均量比（量能）與實質持有成本繪製四象雷達。
             </p>
           </div>
 
@@ -328,10 +328,10 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                   📈 趨勢 {netScore.toFixed(1)}
                 </text>
                 <text x={cx + R + 10} y={cy + 4} textAnchor="start" className="text-[11px] font-bold fill-emerald-300">
-                  📍 位置 %B {divScore.toFixed(1)}
+                  📊 MACD {divScore.toFixed(1)}
                 </text>
                 <text x={cx} y={cy + R + 18} textAnchor="middle" className="text-[11px] font-bold fill-purple-300">
-                  🌊 波動 {valScore.toFixed(1)}
+                  🔊 均量比 {valScore.toFixed(1)}
                 </text>
                 <text x={cx - R - 10} y={cy + 4} textAnchor="end" className="text-[11px] font-bold fill-amber-300">
                   ⚖️ 成本 {fricScore.toFixed(1)}
@@ -340,7 +340,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
             </div>
 
             <p className="w-full text-[10px] text-slate-500 leading-relaxed">
-              以還原收盤價計算（資料至 {tech?.asOf ?? '無資料'}）。布林通道＝20 日均線 ± 2 倍標準差。雷達為位置與強度刻度，用於觀察目前價格相對近期波動的位置，不代表買賣建議。
+              價格指標以還原收盤價計算（資料至 {tech?.asOf ?? '無資料'}）。MACD 為 12/26/9，柱狀體以價格百分比標準化；均量比為 5 日均量對 60 日均量。皆為落後的狀態指標，用於觀察動能與量能，不代表買賣建議。
             </p>
 
             {/* Score Legend Grid */}
@@ -351,14 +351,14 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 <div className="text-[10px] text-slate-500">乖離 {tech ? `${tech.trendDeviationPct >= 0 ? '+' : ''}${tech.trendDeviationPct.toFixed(2)}%` : '-'}（±10% 為極端）</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                <div className="text-[10px] text-emerald-400 font-semibold">📍 位置 %B（布林通道）</div>
-                <div className="text-lg font-bold font-mono text-slate-100">{tech ? tech.percentB.toFixed(2) : '-'}</div>
-                <div className="text-[10px] text-slate-500">0 = 下軌、1 = 上軌（雷達 {divScore.toFixed(0)} 分）</div>
+                <div className="text-[10px] text-emerald-400 font-semibold">📊 MACD 動能（柱狀體）</div>
+                <div className="text-lg font-bold font-mono text-slate-100">{tech ? `${tech.histogramPct >= 0 ? '+' : ''}${tech.histogramPct.toFixed(2)}%` : '-'}</div>
+                <div className="text-[10px] text-slate-500">DIF {tech ? tech.dif.toFixed(3) : '-'}／訊號 {tech ? tech.signal.toFixed(3) : '-'}（雷達 {divScore.toFixed(0)} 分）</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                <div className="text-[10px] text-purple-400 font-semibold">🌊 通道寬度（波動）</div>
-                <div className="text-lg font-bold font-mono text-slate-100">{tech ? `${(tech.bandwidth * 100).toFixed(2)}%` : '-'}</div>
-                <div className="text-[10px] text-slate-500">(上軌−下軌)÷中軌，20% 為滿格（雷達 {valScore.toFixed(0)} 分）</div>
+                <div className="text-[10px] text-purple-400 font-semibold">🔊 均量比（量能）</div>
+                <div className="text-lg font-bold font-mono text-slate-100">{tech ? `${tech.volRatio.toFixed(2)}x` : '-'}</div>
+                <div className="text-[10px] text-slate-500">5 日均量 ÷ 60 日均量，1.0 = 50 分、2.0 滿格（雷達 {valScore.toFixed(0)} 分）</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
                 <div className="flex items-center justify-between">
@@ -409,17 +409,17 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 {isYieldTrapRisk ? (
                   <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-sm">
                     <ShieldAlert className="w-4 h-4 shrink-0" />
-                    <span>跌破布林下軌</span>
+                    <span>動能轉弱（MACD 柱與 DIF 皆為負）</span>
                   </span>
                 ) : isRobustPrime ? (
                   <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
                     <ShieldCheck className="w-4 h-4 shrink-0" />
-                    <span>突破布林上軌</span>
+                    <span>動能偏多（MACD 柱與 DIF 皆為正）</span>
                   </span>
                 ) : (
                   <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow-sm">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>通道內運行</span>
+                    <span>動能中性</span>
                   </span>
                 )}
               </div>
