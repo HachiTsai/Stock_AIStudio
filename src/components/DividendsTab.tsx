@@ -78,14 +78,6 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ dividends, onAddDivi
               實收 = 配息總額 − 二代健保補充保費（2.11%）− 匯費。以實到戶頭金額作為達標基準。
             </p>
           </div>
-
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>記錄新一期股利入帳</span>
-          </button>
         </div>
 
         {/* 3 Summary KPIs */}
