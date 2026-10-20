@@ -17,6 +17,11 @@ export interface SwingRow {
   sma20: number | null;
   pos52wPct: number | null;
   fibLabel: string;
+  longLevel: string;
+  midLevel: string;
+  shortTag: string;
+  fib3: string;
+  combo: string;
   stopPrice: number | null;
   stopDistancePct: number | null;
   reason: string;
@@ -53,6 +58,11 @@ export async function fetchSwingFeed(): Promise<SwingFeed> {
       sma20: num(col(r, '20日線')),
       pos52wPct: num(col(r, '52週位置%')),
       fibLabel: col(r, '費波那契位置30日'),
+      longLevel: col(r, '長期'),
+      midLevel: col(r, '中期'),
+      shortTag: col(r, '短期'),
+      fib3: col(r, '費波那契3段'),
+      combo: col(r, '三週期組合'),
       stopPrice: num(col(r, '2xATR停損價')),
       stopDistancePct: num(col(r, '停損距離%')),
       reason: col(r, '判定依據'),
@@ -62,7 +72,7 @@ export async function fetchSwingFeed(): Promise<SwingFeed> {
 }
 
 /** 狀態排序：需要留意的在前 */
-export const SWING_STATE_ORDER = ['過熱', '偏空迴避', '超跌觀察', '趨勢偏多', '無訊號'];
+export const SWING_STATE_ORDER = ['短線偏熱', '偏空迴避', '超跌觀察', '趨勢偏多', '無訊號'];
 export const swingRank = (label: string): number => {
   const i = SWING_STATE_ORDER.findIndex((s) => label.includes(s));
   return i < 0 ? SWING_STATE_ORDER.length : i;

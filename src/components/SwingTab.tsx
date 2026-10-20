@@ -8,7 +8,7 @@ import { fetchSwingFeed, swingRank, type SwingFeed } from '../services/swingFeed
 const MARKETS = ['全部', '台股', '港股', '美股', '日股'];
 
 const pillClass = (label: string): string => {
-  if (label.includes('過熱')) return 'bg-amber-500/15 text-amber-300 border-amber-500/40';
+  if (label.includes('偏熱')) return 'bg-amber-500/15 text-amber-300 border-amber-500/40';
   if (label.includes('偏空')) return 'bg-rose-500/15 text-rose-300 border-rose-500/40';
   if (label.includes('超跌')) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
   if (label.includes('趨勢')) return 'bg-sky-500/15 text-sky-300 border-sky-500/40';
@@ -236,6 +236,8 @@ export const SwingTab: React.FC = () => {
                   <th className="text-right font-medium px-3 py-2">20 日線</th>
                   <th className="text-right font-medium px-3 py-2">52 週位置</th>
                   <th className="text-right font-medium px-3 py-2" title="近 30 日高低點的費波那契回檔或反彈位置，只描述位置，不是買賣指示">費波那契位置（30 日）</th>
+                  <th className="text-left font-medium px-3 py-2" title="長期看半年線與 120 日報酬，中期看 60 日線與 MACD，短期只標註 20 日線位置與短線過熱或超跌；只描述條件，不是買賣指示">長 / 中 / 短期</th>
+                  <th className="text-left font-medium px-3 py-2" title="三個週期的方向組合；組合變成共振偏多、共振偏空、長多短回檔、長空短反彈時才提醒">三週期組合</th>
                   <th className="text-right font-medium px-3 py-2">2×ATR 停損價</th>
                   <th className="text-right font-medium px-3 py-2">停損距離</th>
                   <th className="text-right font-medium px-3 py-2">近 {rangeDays} 天含息報酬</th>
@@ -244,7 +246,7 @@ export const SwingTab: React.FC = () => {
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={12} className="px-3 py-6 text-center text-slate-500">
                       此市場目前沒有觀察標的。
                     </td>
                   </tr>
@@ -288,6 +290,14 @@ export const SwingTab: React.FC = () => {
                       {r.pos52wPct == null ? '-' : `${r.pos52wPct.toFixed(0)}%`}
                     </td>
                     <td className="px-3 py-2 text-right text-slate-300 whitespace-nowrap">{r.fibLabel || '-'}</td>
+                    <td className="px-3 py-2 text-left text-slate-300 whitespace-nowrap">
+                      {r.longLevel ? `長${r.longLevel} / 中${r.midLevel}` : '-'}
+                      {r.shortTag && <div className="text-xs text-slate-500">{r.shortTag}</div>}
+                    </td>
+                    <td className="px-3 py-2 text-left text-slate-300 whitespace-nowrap">
+                      {r.combo || '-'}
+                      {r.fib3 && <div className="text-xs text-slate-500">{r.fib3}</div>}
+                    </td>
                     <td className="px-3 py-2 text-right text-slate-300">{fmt(r.stopPrice, 2)}</td>
                     <td className="px-3 py-2 text-right text-slate-300">
                       {(() => {
