@@ -127,7 +127,7 @@ export const FundamentalRadarModal: React.FC<FundamentalRadarModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-xl font-extrabold text-slate-100 tracking-tight">
-                  四象限基本面與風險雷達圖
+                  量化動態評分矩陣
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-mono">
                   Look-through Engine

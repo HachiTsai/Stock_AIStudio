@@ -107,10 +107,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <button
               onClick={() => onNavigateTab('radar')}
               className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold shadow-lg shadow-cyan-600/25 transition cursor-pointer"
-              title="查看 27 檔跨市場標的四象限基本面與風險雷達圖"
+              title="查看 27 檔跨市場標的量化動態評分矩陣"
             >
               <Radar className="w-4 h-4 text-cyan-200" />
-              <span>四象限基本面雷達</span>
+              <span>量化動態評分矩陣</span>
             </button>
             <button
               onClick={() => setIsQuoteModalOpen(true)}

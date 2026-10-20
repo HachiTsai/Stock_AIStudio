@@ -254,7 +254,7 @@ export function synthesizeObjectiveTrends(
   let bearCount = 0;
   let neutralCount = 0;
 
-  // 取得目標標的在全市場四象圖與基本面體檢庫之客觀基準指標
+  // 取得目標標的在全市場動態評分矩陣與基本面體檢庫之客觀基準指標
   const summary = ALL_MARKET_SUMMARY_FALLBACK.find((s) => s.etf_id === targetTicker);
   const taxMetrics = ETF_TAX_FEE_MAP[targetTicker];
 
@@ -270,7 +270,7 @@ export function synthesizeObjectiveTrends(
       netScore: baseDivScore,
       radarBaseScore: baseDivScore,
       signalSupportPct: 50,
-      benchmarkDescription: `四象圖基準：${summary?.constituent_count || 49} 檔成分股加權分紅狀況（基準 ${baseDivScore.toFixed(1)} 分）`,
+      benchmarkDescription: `動態評分矩陣基準：${summary?.constituent_count || 49} 檔成分股加權分紅狀況（基準 ${baseDivScore.toFixed(1)} 分）`,
     },
     valuation_margin: {
       bullWeight: 0,
@@ -279,7 +279,7 @@ export function synthesizeObjectiveTrends(
       netScore: baseValScore,
       radarBaseScore: baseValScore,
       signalSupportPct: 50,
-      benchmarkDescription: `四象圖基準：高殖利率位階與折價安全邊際（基準 ${baseValScore.toFixed(1)} 分）`,
+      benchmarkDescription: `動態評分矩陣基準：高殖利率位階與折價安全邊際（基準 ${baseValScore.toFixed(1)} 分）`,
     },
     friction_fx: {
       bullWeight: 0,
@@ -288,7 +288,7 @@ export function synthesizeObjectiveTrends(
       netScore: baseFricScore,
       radarBaseScore: baseFricScore,
       signalSupportPct: 50,
-      benchmarkDescription: `四象圖基準：實質年損耗 ${taxMetrics ? taxMetrics.totalFrictionPct.toFixed(2) : '0.99'}%（TER ${taxMetrics ? taxMetrics.terPct.toFixed(2) : '0.93'}% + 二代健保實質負擔）`,
+      benchmarkDescription: `動態評分矩陣基準：實質年損耗 ${taxMetrics ? taxMetrics.totalFrictionPct.toFixed(2) : '0.99'}%（TER ${taxMetrics ? taxMetrics.terPct.toFixed(2) : '0.93'}% + 二代健保實質負擔）`,
     },
   };
 
@@ -316,12 +316,12 @@ export function synthesizeObjectiveTrends(
     }
   });
 
-  // Compute dimension net scores (連動四象圖量化基準，並依正反證據邊際動態合成)
+  // Compute dimension net scores (連動動態評分矩陣量化基準，並依正反證據邊際動態合成)
   (Object.keys(dimStats) as SignalDimension[]).forEach((dim) => {
     const d = dimStats[dim];
     const total = d.bullWeight + d.bearWeight;
     d.signalSupportPct = total > 0 ? Math.round((d.bullWeight / total) * 100) : 50;
-    // 依累積情報之正反證據權重進行微調校準（±2.5 分以內，忠實反映情報邊際效應同時錨定四象圖基準）
+    // 依累積情報之正反證據權重進行微調校準（±2.5 分以內，忠實反映情報邊際效應同時錨定動態評分矩陣基準）
     const shift = total > 0 ? ((d.bullWeight - d.bearWeight) / total) * 1.5 : 0;
     d.netScore = Number(Math.min(100, Math.max(0, d.radarBaseScore + shift)).toFixed(1));
   });

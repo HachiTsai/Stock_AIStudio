@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   const tabs = [
     { id: 'overview', label: '總覽概況', icon: TrendingUp },
     ...(SHOW_INTELLIGENCE_TAB ? [{ id: 'intelligence', label: '客觀趨勢情報中心', icon: Scale, badge: `${signalsCount}` }] : []),
-    { id: 'radar', label: '四象限基本面雷達', icon: Radar },
+    { id: 'radar', label: '量化動態評分矩陣', icon: Radar },
     { id: 'swing', label: '波段觀察', icon: Activity },
     { id: 'dividends', label: '股利入帳與達標試算', icon: Sparkles },
   ];
