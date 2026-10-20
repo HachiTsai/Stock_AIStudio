@@ -16,6 +16,7 @@ import {
 } from '../types/portfolio';
 import { synthesizeObjectiveTrends } from '../utils/intelligenceEngine';
 import { fetchScoreHistory, ScorePoint } from '../services/signalsFeedService';
+import { useDialogZoom } from './DialogZoom';
 
 const PAGE_SIZE = 10;
 
@@ -115,6 +116,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   }, []);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selected, setSelected] = useState<IntelligenceSignal | null>(null);
+  const dz = useDialogZoom();
 
   // Compute live objective trend synthesis (連動四象圖與基本面體檢庫)
   const synthesis = synthesizeObjectiveTrends(signals, baseDividendPerShare, ticker);
@@ -478,7 +480,9 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setSelected(null)}
         >
+          {dz.controls}
           <div
+            {...dz.panelProps}
             role="dialog"
             aria-modal="true"
             className="w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl"

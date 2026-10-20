@@ -22,6 +22,7 @@ import {
   formatShares 
 } from '../utils/calculations';
 import { usePrivacy } from '../context/PrivacyContext';
+import { useDialogZoom } from './DialogZoom';
 
 interface LatestQuoteModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
   onUpdateHolding,
   onSuccessToast,
 }) => {
+  const dz = useDialogZoom();
   const { isPrivacyMaskActive, maskTWD, maskShares, maskCost, maskPct } = usePrivacy();
   const mainHolding = holdings[0] || null;
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>(mainHolding?.id || '');
@@ -130,7 +132,8 @@ export const LatestQuoteModal: React.FC<LatestQuoteModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative overflow-hidden max-h-[95vh] flex flex-col">
+      {dz.controls}
+      <div {...dz.panelProps} className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative overflow-hidden max-h-[95vh] flex flex-col">
         {/* Modal Header */}
         <div className="flex items-start justify-between pb-4 border-b border-slate-800 shrink-0">
           <div className="flex items-center space-x-3">
