@@ -123,6 +123,113 @@ async function startServer() {
     return null;
   };
 
+  // Endpoint 0a: 單檔日線（約 1 年）＋即時價，給「波段觀察」點開的技術圖表用。
+  // 代號用波段觀察的格式：TPE:2356、HKG:1919、TYO:7203、NASDAQ:AAPL。
+  const toYahooSymbols = (ticker: string): string[] => {
+    const [ex, raw] = ticker.includes(':') ? ticker.split(':') : ['TPE', ticker];
+    const code = (raw || '').trim();
+    if (ex === 'HKG') return [`${code.padStart(4, '0')}.HK`];
+    if (ex === 'TYO') return [`${code}.T`];
+    if (ex === 'TPE') return [`${code}.TW`, `${code}.TWO`];
+    return [code];
+  };
+  const chartCache = new Map<string, { at: number; data: any }>();
+
+  // Endpoint 0a-2: 波段觀察表格用的批次即時價（每檔快取 60 秒，避免打爆 Yahoo）。
+  const liveCache = new Map<string, { at: number; data: any }>();
+  const fetchLive = async (ticker: string) => {
+    const cached = liveCache.get(ticker);
+    if (cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
+    for (const symbol of toYahooSymbols(ticker)) {
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+          { headers: YAHOO_HEADERS }
+        );
+        if (!r.ok) continue;
+        const result = (await r.json())?.chart?.result?.[0];
+        const meta = result?.meta;
+        if (!meta || typeof meta.regularMarketPrice !== 'number') continue;
+        const closes: number[] = (result.indicators?.quote?.[0]?.close || []).filter((x: unknown) => typeof x === 'number');
+        const previousClose = closes.length >= 2 ? closes[closes.length - 2] : meta.regularMarketPrice;
+        const data = {
+          price: meta.regularMarketPrice,
+          previousClose,
+          changePct: previousClose > 0 ? ((meta.regularMarketPrice - previousClose) / previousClose) * 100 : 0,
+          quoteTime: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime : null,
+        };
+        liveCache.set(ticker, { at: Date.now(), data });
+        return data;
+      } catch {
+        // 試下一個後綴
+      }
+    }
+    return null;
+  };
+
+  app.get('/api/swing-quotes', async (req, res) => {
+    const tickers = String(req.query.tickers || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => /^[A-Za-z]{2,6}:[A-Za-z0-9.\-]{1,12}$/.test(t))
+      .slice(0, 60);
+    if (tickers.length === 0) {
+      res.status(400).json({ error: '需要 tickers，例如 TPE:2356,HKG:1919' });
+      return;
+    }
+    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchLive(t)] as const));
+    res.json({ quotes: Object.fromEntries(entries.filter(([, v]) => v)), source: 'Yahoo Finance (公開免費市場報價)' });
+  });
+
+  app.get('/api/stock-chart', async (req, res) => {
+    try {
+      const ticker = String(req.query.ticker || '').trim();
+      if (!/^[A-Za-z]{2,6}:[A-Za-z0-9.\-]{1,12}$/.test(ticker)) {
+        res.status(400).json({ error: '代號格式需為 交易所:代號，例如 TPE:2356' });
+        return;
+      }
+      const cached = chartCache.get(ticker);
+      if (cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) {
+        res.json(cached.data);
+        return;
+      }
+      for (const symbol of toYahooSymbols(ticker)) {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
+          { headers: YAHOO_HEADERS }
+        );
+        if (!r.ok) continue;
+        const result = (await r.json())?.chart?.result?.[0];
+        const q = result?.indicators?.quote?.[0];
+        if (!result || !q || typeof result.meta?.regularMarketPrice !== 'number') continue;
+        const bars: { t: number; o: number; h: number; l: number; c: number; v: number }[] = [];
+        (result.timestamp || []).forEach((t: number, i: number) => {
+          const [o, h, l, c, v] = [q.open[i], q.high[i], q.low[i], q.close[i], q.volume[i]];
+          if ([o, h, l, c, v].every((x) => typeof x === 'number')) bars.push({ t, o, h, l, c, v });
+        });
+        const meta = result.meta;
+        const data = {
+          ticker,
+          symbol,
+          currency: meta.currency || '',
+          price: meta.regularMarketPrice,
+          // range=1y 時 chartPreviousClose 是一年前的收盤，不能拿來算今日漲跌；最後一根日線即最新交易日
+          previousClose: bars.length >= 2 ? bars[bars.length - 2].c : meta.regularMarketPrice,
+          quoteTime: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime : null,
+          bars,
+          source: 'Yahoo Finance (公開免費市場報價)',
+        };
+        chartCache.set(ticker, { at: Date.now(), data });
+        res.json(data);
+        return;
+      }
+      res.status(404).json({ error: '查不到該標的的日線與報價' });
+    } catch (error: any) {
+      console.error('Stock chart error:', error);
+      res.status(500).json({ error: error.message || '抓取日線失敗' });
+    }
+  });
+
   app.get('/api/etf-quotes', async (req, res) => {
     const ids = String(req.query.tickers || '')
       .split(',')

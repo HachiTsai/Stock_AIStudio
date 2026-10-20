@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { StockChartModal } from './StockChartModal';
 import { fetchSwingFeed, swingRank, type SwingFeed } from '../services/swingFeedService';
 
 const MARKETS = ['全部', '台股', '港股', '美股', '日股'];
@@ -11,12 +12,23 @@ const pillClass = (label: string): string => {
   return 'bg-slate-800 text-slate-400 border-slate-700';
 };
 
+interface LiveQuote {
+  price: number;
+  previousClose: number;
+  changePct: number;
+  quoteTime: number | null;
+}
+
+const LIVE_REFRESH_MS = 60_000;
+
 const fmt = (v: number | null, d: number) => (v == null ? '-' : v.toFixed(d));
 
 export const SwingTab: React.FC = () => {
   const [feed, setFeed] = useState<SwingFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<string>('全部');
+  const [live, setLive] = useState<Record<string, LiveQuote>>({});
+  const [chartRow, setChartRow] = useState<{ ticker: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +39,29 @@ export const SwingTab: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  // 即時價：載入後立刻抓一次，之後每分鐘更新；失敗就沿用 Sheet 的日線收盤
+  useEffect(() => {
+    if (!feed || feed.rows.length === 0) return;
+    let cancelled = false;
+    const tickers = feed.rows.map((r) => r.ticker).join(',');
+    const load = () =>
+      fetch(`/api/swing-quotes?tickers=${encodeURIComponent(tickers)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => j && !cancelled && setLive(j.quotes ?? {}))
+        .catch(() => undefined);
+    load();
+    const id = setInterval(load, LIVE_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [feed]);
+
+  const latestQuoteTime = useMemo(
+    () => Math.max(0, ...Object.values(live).map((q) => q.quoteTime ?? 0)),
+    [live],
+  );
 
   const rows = useMemo(
     () =>
@@ -50,7 +85,14 @@ export const SwingTab: React.FC = () => {
         <h2 className="text-xl font-bold text-slate-100">波段觀察</h2>
         <p className="text-sm text-slate-400 mt-1">
           5 天到 4 週的日線指標狀態與停損距離。只描述指標條件，不是買賣指示；波段部位與股利再投入部位分開看。
-          {feed?.updatedAt && <span className="ml-1">更新日 {feed.updatedAt}</span>}
+          {feed?.updatedAt && <span className="ml-1">指標更新日 {feed.updatedAt}（日線）</span>}
+          {latestQuoteTime > 0 && (
+            <span className="ml-1">
+              現價為 Yahoo 即時報價，每分鐘更新，最新報價{' '}
+              {new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(latestQuoteTime * 1000))}
+              （台北）
+            </span>
+          )}
         </p>
       </div>
 
@@ -100,7 +142,7 @@ export const SwingTab: React.FC = () => {
                 <tr className="text-xs text-slate-400 border-b border-slate-800">
                   <th className="text-left font-medium px-3 py-2">標的</th>
                   <th className="text-left font-medium px-3 py-2">狀態</th>
-                  <th className="text-right font-medium px-3 py-2">收盤</th>
+                  <th className="text-right font-medium px-3 py-2">現價</th>
                   <th className="text-right font-medium px-3 py-2">RSI14</th>
                   <th className="text-right font-medium px-3 py-2">20 日線</th>
                   <th className="text-right font-medium px-3 py-2">52 週位置</th>
@@ -119,7 +161,14 @@ export const SwingTab: React.FC = () => {
                 {rows.map((r) => (
                   <tr key={r.ticker} className="border-b border-slate-800/70 last:border-0">
                     <td className="px-3 py-2 text-slate-100 whitespace-nowrap">
-                      {r.name}
+                      <button
+                        type="button"
+                        onClick={() => setChartRow({ ticker: r.ticker, name: r.name })}
+                        title="看即時價、布林通道與費波那契"
+                        className="text-left cursor-pointer hover:text-emerald-300 underline decoration-dotted underline-offset-4"
+                      >
+                        {r.name}
+                      </button>
                       <div className="text-[11px] text-slate-500 font-mono">
                         {r.ticker} · {r.market}
                       </div>
@@ -129,7 +178,19 @@ export const SwingTab: React.FC = () => {
                         {r.label}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right text-slate-200">{fmt(r.close, 2)}</td>
+                    <td className="px-3 py-2 text-right text-slate-200">
+                      {live[r.ticker] ? (
+                        <>
+                          {live[r.ticker].price.toFixed(2)}
+                          <div className={`text-[11px] ${live[r.ticker].changePct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {live[r.ticker].changePct >= 0 ? '+' : ''}
+                            {live[r.ticker].changePct.toFixed(2)}%
+                          </div>
+                        </>
+                      ) : (
+                        <span title="尚未取得即時報價，顯示日線收盤">{fmt(r.close, 2)}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-right text-slate-300">{fmt(r.rsi14, 1)}</td>
                     <td className="px-3 py-2 text-right text-slate-300">{fmt(r.sma20, 2)}</td>
                     <td className="px-3 py-2 text-right text-slate-300">
@@ -137,7 +198,11 @@ export const SwingTab: React.FC = () => {
                     </td>
                     <td className="px-3 py-2 text-right text-slate-300">{fmt(r.stopPrice, 2)}</td>
                     <td className="px-3 py-2 text-right text-slate-300">
-                      {r.stopDistancePct == null ? '-' : `-${r.stopDistancePct.toFixed(1)}%`}
+                      {(() => {
+                        const px = live[r.ticker]?.price;
+                        if (px != null && r.stopPrice != null) return `${(((r.stopPrice - px) / px) * 100).toFixed(1)}%`;
+                        return r.stopDistancePct == null ? '-' : `-${r.stopDistancePct.toFixed(1)}%`;
+                      })()}
                     </td>
                   </tr>
                 ))}
@@ -146,6 +211,7 @@ export const SwingTab: React.FC = () => {
           </div>
         </>
       )}
+      {chartRow && <StockChartModal ticker={chartRow.ticker} name={chartRow.name} onClose={() => setChartRow(null)} />}
     </div>
   );
 };
