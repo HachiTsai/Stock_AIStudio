@@ -324,7 +324,7 @@ const AppContent: React.FC = () => {
 
       {/* Global Privacy Mask Active Reminder Banner */}
       {isPrivacyMaskActive && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs text-amber-200 shadow-sm animate-fade-in sticky top-16 z-30 backdrop-blur-md">
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs text-amber-200 shadow-sm animate-fade-in z-30 backdrop-blur-md">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <EyeOff className="w-4 h-4 text-amber-400 shrink-0" />
