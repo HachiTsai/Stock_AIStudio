@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { bollinger, fibonacci, type Bar } from '../utils/swingIndicators';
+import { bollinger, fibonacci, periodReturn, type Bar } from '../utils/swingIndicators';
+import { ReturnRangePicker } from './ReturnRangePicker';
 
 interface ChartData {
   ticker: string;
@@ -16,6 +17,8 @@ interface ChartData {
 interface Props {
   ticker: string;
   name: string;
+  rangeDays: number;
+  onRangeChange: (days: number) => void;
   onClose: () => void;
 }
 
@@ -37,7 +40,7 @@ const fmtTime = (sec: number | null) =>
       }).format(new Date(sec * 1000))
     : '-';
 
-export const StockChartModal: React.FC<Props> = ({ ticker, name, onClose }) => {
+export const StockChartModal: React.FC<Props> = ({ ticker, name, rangeDays, onRangeChange, onClose }) => {
   const [data, setData] = useState<ChartData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lookback, setLookback] = useState(60);
@@ -95,6 +98,11 @@ export const StockChartModal: React.FC<Props> = ({ ticker, name, onClose }) => {
       .join('');
   };
 
+  const ret = useMemo(
+    () => (data ? periodReturn({ t: data.bars.map((b) => b.t), c: data.bars.map((b) => b.c), a: data.bars.map((b) => b.a) }, rangeDays) : null),
+    [data, rangeDays],
+  );
+
   const change = data ? data.price - data.previousClose : 0;
   const changePct = data && data.previousClose > 0 ? (change / data.previousClose) * 100 : 0;
   const up = change >= 0;
@@ -140,6 +148,29 @@ export const StockChartModal: React.FC<Props> = ({ ticker, name, onClose }) => {
               <span className="text-xs text-slate-500">
                 {data.currency} · 報價時間 {fmtTime(data.quoteTime)}（台北）· {data.source}
               </span>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+              <ReturnRangePicker days={rangeDays} onChange={onRangeChange} />
+              <div className="mt-2 text-sm tabular-nums">
+                {ret ? (
+                  <>
+                    <span className="text-slate-400">近 {rangeDays} 天含息報酬 </span>
+                    <b className={ret.total >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                      {ret.total >= 0 ? '+' : ''}
+                      {ret.total.toFixed(2)}%
+                    </b>
+                    <span className="text-slate-400">
+                      {' '}
+                      ＝ 價差 {ret.price >= 0 ? '+' : ''}
+                      {ret.price.toFixed(2)}% ＋ 配息 {ret.dividendEffect >= 0 ? '+' : ''}
+                      {ret.dividendEffect.toFixed(2)} 個百分點（自 {new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date(ret.fromTime * 1000))} 起）
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-slate-500">日線未涵蓋近 {rangeDays} 天，無法計算。</span>
+                )}
+              </div>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">

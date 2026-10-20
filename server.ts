@@ -137,9 +137,9 @@ async function startServer() {
 
   // Endpoint 0a-2: 波段觀察表格用的批次即時價（每檔快取 60 秒，避免打爆 Yahoo）。
   const liveCache = new Map<string, { at: number; data: any }>();
-  const fetchLive = async (ticker: string) => {
+  const fetchLive = async (ticker: string, fresh = false) => {
     const cached = liveCache.get(ticker);
-    if (cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
+    if (!fresh && cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
     for (const symbol of toYahooSymbols(ticker)) {
       try {
         const r = await fetch(
@@ -167,6 +167,58 @@ async function startServer() {
     return null;
   };
 
+  // Endpoint 0a-3: 波段觀察的階段性報酬用：每檔 1 年日期、收盤與還原收盤價（含配息調整），快取 5 分鐘（最後一點含當日尚未收完的 K 棒，不宜放太久）。
+  const historyCache = new Map<string, { at: number; data: any }>();
+  const HISTORY_TTL_MS = 5 * 60_000;
+  const fetchHistory = async (ticker: string, fresh = false) => {
+    const cached = historyCache.get(ticker);
+    if (!fresh && cached && Date.now() - cached.at < HISTORY_TTL_MS) return cached.data;
+    for (const symbol of toYahooSymbols(ticker)) {
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
+          { headers: YAHOO_HEADERS }
+        );
+        if (!r.ok) continue;
+        const result = (await r.json())?.chart?.result?.[0];
+        const close = result?.indicators?.quote?.[0]?.close;
+        const adj = result?.indicators?.adjclose?.[0]?.adjclose || close;
+        if (!result || !close) continue;
+        const t: number[] = [];
+        const c: number[] = [];
+        const a: number[] = [];
+        (result.timestamp || []).forEach((ts: number, i: number) => {
+          if (typeof close[i] === 'number' && typeof adj[i] === 'number') {
+            t.push(ts);
+            c.push(Number(close[i].toFixed(4)));
+            a.push(Number(adj[i].toFixed(4)));
+          }
+        });
+        if (t.length < 5) continue;
+        const data = { t, c, a };
+        historyCache.set(ticker, { at: Date.now(), data });
+        return data;
+      } catch {
+        // 試下一個後綴
+      }
+    }
+    return null;
+  };
+
+  app.get('/api/swing-history', async (req, res) => {
+    const tickers = String(req.query.tickers || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => /^[A-Za-z]{2,6}:[A-Za-z0-9.\-]{1,12}$/.test(t))
+      .slice(0, 60);
+    if (tickers.length === 0) {
+      res.status(400).json({ error: '需要 tickers，例如 TPE:2356,HKG:1919' });
+      return;
+    }
+    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchHistory(t, req.query.fresh === '1')] as const));
+    res.json({ history: Object.fromEntries(entries.filter(([, v]) => v)), source: 'Yahoo Finance (公開免費市場報價)' });
+  });
+
   app.get('/api/swing-quotes', async (req, res) => {
     const tickers = String(req.query.tickers || '')
       .split(',')
@@ -177,7 +229,7 @@ async function startServer() {
       res.status(400).json({ error: '需要 tickers，例如 TPE:2356,HKG:1919' });
       return;
     }
-    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchLive(t)] as const));
+    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchLive(t, req.query.fresh === '1')] as const));
     res.json({ quotes: Object.fromEntries(entries.filter(([, v]) => v)), source: 'Yahoo Finance (公開免費市場報價)' });
   });
 
@@ -202,10 +254,11 @@ async function startServer() {
         const result = (await r.json())?.chart?.result?.[0];
         const q = result?.indicators?.quote?.[0];
         if (!result || !q || typeof result.meta?.regularMarketPrice !== 'number') continue;
-        const bars: { t: number; o: number; h: number; l: number; c: number; v: number }[] = [];
+        const adj = result.indicators?.adjclose?.[0]?.adjclose || q.close;
+        const bars: { t: number; o: number; h: number; l: number; c: number; a: number; v: number }[] = [];
         (result.timestamp || []).forEach((t: number, i: number) => {
-          const [o, h, l, c, v] = [q.open[i], q.high[i], q.low[i], q.close[i], q.volume[i]];
-          if ([o, h, l, c, v].every((x) => typeof x === 'number')) bars.push({ t, o, h, l, c, v });
+          const [o, h, l, c, a, v] = [q.open[i], q.high[i], q.low[i], q.close[i], adj[i], q.volume[i]];
+          if ([o, h, l, c, a, v].every((x) => typeof x === 'number')) bars.push({ t, o, h, l, c, a, v });
         });
         const meta = result.meta;
         const data = {

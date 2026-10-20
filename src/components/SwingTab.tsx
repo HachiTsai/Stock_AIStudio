@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { StockChartModal } from './StockChartModal';
+import { ReturnRangePicker } from './ReturnRangePicker';
+import { periodReturn, type PriceSeries } from '../utils/swingIndicators';
 import { fetchSwingFeed, swingRank, type SwingFeed } from '../services/swingFeedService';
 
 const MARKETS = ['全部', '台股', '港股', '美股', '日股'];
@@ -28,6 +31,8 @@ export const SwingTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<string>('全部');
   const [live, setLive] = useState<Record<string, LiveQuote>>({});
+  const [history, setHistory] = useState<Record<string, PriceSeries>>({});
+  const [rangeDays, setRangeDays] = useState(91);
   const [chartRow, setChartRow] = useState<{ ticker: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -40,23 +45,63 @@ export const SwingTab: React.FC = () => {
     };
   }, []);
 
-  // 即時價：載入後立刻抓一次，之後每分鐘更新；失敗就沿用 Sheet 的日線收盤
+  // 即時價：載入後立刻抓一次，之後每分鐘更新；失敗就沿用 Sheet 的日線收盤。
+  // 手動「更新報價」帶 fresh=1，略過後端 60 秒快取，立刻重抓全部標的。
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
+  const tickerList = useMemo(() => (feed?.rows ?? []).map((r) => r.ticker).join(','), [feed]);
+
+  const loadQuotes = useCallback(
+    async (fresh: boolean) => {
+      if (!tickerList) return;
+      try {
+        const r = await fetch(`/api/swing-quotes?tickers=${encodeURIComponent(tickerList)}${fresh ? '&fresh=1' : ''}`);
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        setLive(j.quotes ?? {});
+        setRefreshError(false);
+      } catch {
+        setRefreshError(true);
+      }
+    },
+    [tickerList],
+  );
+
   useEffect(() => {
-    if (!feed || feed.rows.length === 0) return;
-    let cancelled = false;
-    const tickers = feed.rows.map((r) => r.ticker).join(',');
-    const load = () =>
-      fetch(`/api/swing-quotes?tickers=${encodeURIComponent(tickers)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j && !cancelled && setLive(j.quotes ?? {}))
-        .catch(() => undefined);
-    load();
-    const id = setInterval(load, LIVE_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [feed]);
+    if (!tickerList) return;
+    loadQuotes(false);
+    const id = setInterval(() => loadQuotes(false), LIVE_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [tickerList, loadQuotes]);
+
+  // 階段性報酬用的 1 年日線（含還原收盤價）：區間切換在前端計算，每 5 分鐘與手動更新時重抓
+  const loadHistory = useCallback(
+    async (fresh: boolean) => {
+      if (!tickerList) return;
+      try {
+        const r = await fetch(`/api/swing-history?tickers=${encodeURIComponent(tickerList)}${fresh ? '&fresh=1' : ''}`);
+        if (!r.ok) return;
+        const j = await r.json();
+        setHistory(j.history ?? {});
+      } catch {
+        // 沿用上一次的日線
+      }
+    },
+    [tickerList],
+  );
+
+  useEffect(() => {
+    if (!tickerList) return;
+    loadHistory(false);
+    const id = setInterval(() => loadHistory(false), 5 * 60_000);
+    return () => clearInterval(id);
+  }, [tickerList, loadHistory]);
+
+  const manualRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadQuotes(true), loadHistory(true)]);
+    setRefreshing(false);
+  };
 
   const latestQuoteTime = useMemo(
     () => Math.max(0, ...Object.values(live).map((q) => q.quoteTime ?? 0)),
@@ -119,6 +164,21 @@ export const SwingTab: React.FC = () => {
         ))}
       </div>
 
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={manualRefresh}
+          disabled={refreshing || !tickerList}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-lg border border-emerald-500/60 bg-emerald-600/20 text-emerald-200 text-sm cursor-pointer hover:bg-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? '更新中…' : '更新報價'}
+        </button>
+        {refreshError && <span className="text-xs text-rose-300">報價更新失敗，仍顯示上一次的數字</span>}
+      </div>
+
+      <ReturnRangePicker days={rangeDays} onChange={setRangeDays} />
+
       {error && (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
           {error}。請確認「波段觀察」試算表仍為知道連結者可檢視。
@@ -137,7 +197,7 @@ export const SwingTab: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
-            <table className="w-full min-w-[720px] text-sm tabular-nums">
+            <table className="w-full min-w-[820px] text-sm tabular-nums">
               <thead>
                 <tr className="text-xs text-slate-400 border-b border-slate-800">
                   <th className="text-left font-medium px-3 py-2">標的</th>
@@ -148,12 +208,13 @@ export const SwingTab: React.FC = () => {
                   <th className="text-right font-medium px-3 py-2">52 週位置</th>
                   <th className="text-right font-medium px-3 py-2">2×ATR 停損價</th>
                   <th className="text-right font-medium px-3 py-2">停損距離</th>
+                  <th className="text-right font-medium px-3 py-2">近 {rangeDays} 天含息報酬</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
                       此市場目前沒有觀察標的。
                     </td>
                   </tr>
@@ -204,6 +265,25 @@ export const SwingTab: React.FC = () => {
                         return r.stopDistancePct == null ? '-' : `-${r.stopDistancePct.toFixed(1)}%`;
                       })()}
                     </td>
+                    <td className="px-3 py-2 text-right">
+                      {(() => {
+                        const pr = history[r.ticker] ? periodReturn(history[r.ticker], rangeDays) : null;
+                        if (!pr) return <span className="text-slate-500" title="日線未涵蓋此區間或尚未載入">-</span>;
+                        return (
+                          <>
+                            <span className={pr.total >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                              {pr.total >= 0 ? '+' : ''}
+                              {pr.total.toFixed(2)}%
+                            </span>
+                            <div className="text-[11px] text-slate-500" title="不含息報酬與配息貢獻">
+                              價 {pr.price >= 0 ? '+' : ''}
+                              {pr.price.toFixed(2)}% · 息 {pr.dividendEffect >= 0 ? '+' : ''}
+                              {pr.dividendEffect.toFixed(2)}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -211,7 +291,7 @@ export const SwingTab: React.FC = () => {
           </div>
         </>
       )}
-      {chartRow && <StockChartModal ticker={chartRow.ticker} name={chartRow.name} onClose={() => setChartRow(null)} />}
+      {chartRow && <StockChartModal ticker={chartRow.ticker} name={chartRow.name} rangeDays={rangeDays} onRangeChange={setRangeDays} onClose={() => setChartRow(null)} />}
     </div>
   );
 };
