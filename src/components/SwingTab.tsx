@@ -26,10 +26,15 @@ const LIVE_REFRESH_MS = 60_000;
 
 const fmt = (v: number | null, d: number) => (v == null ? '-' : v.toFixed(d));
 
+const KINDS = ['全部', '個股', 'ETF'] as const;
+/** 來源欄含「ETF 卡片」為 ETF，其餘（個股卡片、成分股）為個股。 */
+const kindOf = (source: string) => (source.includes('ETF 卡片') ? 'ETF' : '個股');
+
 export const SwingTab: React.FC = () => {
   const [feed, setFeed] = useState<SwingFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<string>('全部');
+  const [kind, setKind] = useState<string>('全部');
   const [live, setLive] = useState<Record<string, LiveQuote>>({});
   const [history, setHistory] = useState<Record<string, PriceSeries>>({});
   const [rangeDays, setRangeDays] = useState(91);
@@ -112,8 +117,9 @@ export const SwingTab: React.FC = () => {
     () =>
       (feed?.rows ?? [])
         .filter((r) => market === '全部' || r.market === market)
+        .filter((r) => kindOf(r.source) === kind || kind === '全部')
         .sort((a, b) => swingRank(a.label) - swingRank(b.label)),
-    [feed, market],
+    [feed, market, kind],
   );
 
   const counts = useMemo(() => {
@@ -158,6 +164,29 @@ export const SwingTab: React.FC = () => {
             {feed && (
               <span className="ml-1.5 text-xs opacity-80">
                 {m === '全部' ? feed.rows.length : feed.rows.filter((r) => r.market === m).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="標的類型">
+        {KINDS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setKind(k)}
+            aria-pressed={kind === k}
+            className={`px-4 py-1.5 rounded-full border text-sm cursor-pointer transition ${
+              kind === k
+                ? 'bg-sky-600 border-sky-500 text-white'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            {k}
+            {feed && (
+              <span className="ml-1.5 text-xs opacity-80">
+                {k === '全部' ? feed.rows.length : feed.rows.filter((r) => kindOf(r.source) === k).length}
               </span>
             )}
           </button>
