@@ -72,7 +72,7 @@ export async function fetchSwingFeed(): Promise<SwingFeed> {
 }
 
 /** 狀態排序：需要留意的在前 */
-export const SWING_STATE_ORDER = ['短線偏熱', '偏空迴避', '超跌觀察', '趨勢偏多', '無訊號'];
+export const SWING_STATE_ORDER = ['短線偏熱', '偏空迴避', '超跌觀察', '趨勢偏多', '未觸發條件', '無訊號'];
 export const swingRank = (label: string): number => {
   const i = SWING_STATE_ORDER.findIndex((s) => label.includes(s));
   return i < 0 ? SWING_STATE_ORDER.length : i;
