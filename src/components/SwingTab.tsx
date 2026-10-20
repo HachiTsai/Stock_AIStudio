@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { StockChartModal } from './StockChartModal';
 import { fetchSwingFeed, swingRank, type SwingFeed } from '../services/swingFeedService';
 
 const MARKETS = ['全部', '台股', '港股', '美股', '日股'];
@@ -17,6 +18,7 @@ export const SwingTab: React.FC = () => {
   const [feed, setFeed] = useState<SwingFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<string>('全部');
+  const [chartRow, setChartRow] = useState<{ ticker: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,7 +121,14 @@ export const SwingTab: React.FC = () => {
                 {rows.map((r) => (
                   <tr key={r.ticker} className="border-b border-slate-800/70 last:border-0">
                     <td className="px-3 py-2 text-slate-100 whitespace-nowrap">
-                      {r.name}
+                      <button
+                        type="button"
+                        onClick={() => setChartRow({ ticker: r.ticker, name: r.name })}
+                        title="看即時價、布林通道與費波那契"
+                        className="text-left cursor-pointer hover:text-emerald-300 underline decoration-dotted underline-offset-4"
+                      >
+                        {r.name}
+                      </button>
                       <div className="text-[11px] text-slate-500 font-mono">
                         {r.ticker} · {r.market}
                       </div>
@@ -146,6 +155,7 @@ export const SwingTab: React.FC = () => {
           </div>
         </>
       )}
+      {chartRow && <StockChartModal ticker={chartRow.ticker} name={chartRow.name} onClose={() => setChartRow(null)} />}
     </div>
   );
 };
