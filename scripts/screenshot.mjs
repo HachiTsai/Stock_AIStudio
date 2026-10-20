@@ -35,7 +35,8 @@ const flag = (name) => args.includes(`--${name}`);
 const list = (v, all) => (v ? v.split(',').map((s) => s.trim()) : all);
 
 const outDir = resolve(opt('out') ?? 'screenshots');
-const tabs = list(opt('tab'), Object.keys(TABS));
+// intelligence 分頁暫時下架（src/config/features.ts），預設不拍；重新上架後把它加回預設清單。
+const tabs = list(opt('tab'), Object.keys(TABS).filter((t) => t !== 'intelligence'));
 const vps = list(opt('viewport'), Object.keys(VIEWPORTS));
 for (const t of tabs) if (!TABS[t]) die(`未知分頁 ${t}，可用：${Object.keys(TABS).join(', ')}`);
 for (const v of vps) if (!VIEWPORTS[v]) die(`未知尺寸 ${v}，可用：${Object.keys(VIEWPORTS).join(', ')}`);
