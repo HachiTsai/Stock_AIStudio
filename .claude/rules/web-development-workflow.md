@@ -28,6 +28,12 @@
   # 等同於 tsc --noEmit
   ```
 
+- **一行指令截圖**（建置並拍 5 個分頁與主要彈窗，手機／手機橫向／平板／電腦；`--tab`、`--viewport`、`--out` 可限縮）：
+
+  ```bash
+  npm run screenshot -- --tab swing --out screenshots
+  ```
+
 - **專案打包與生產建置**：
 
   ```bash
