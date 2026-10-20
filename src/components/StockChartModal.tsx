@@ -26,7 +26,7 @@ const W = 760;
 const H = 360;
 const PAD = { l: 8, r: 64, t: 12, b: 22 };
 const SHOW = 90; // 圖上顯示最近 90 根日線
-const LOOKBACKS = [30, 60, 120];
+const LOOKBACKS = [5, 10, 15, 30, 45, 60, 90, 120];
 
 const fmtTime = (sec: number | null) =>
   sec
@@ -181,7 +181,7 @@ export const StockChartModal: React.FC<Props> = ({ ticker, name, rangeDays, onRa
                 <input type="checkbox" checked={showFib} onChange={(e) => setShowFib(e.target.checked)} /> 費波那契回檔
               </label>
               {showFib && (
-                <span className="flex items-center gap-1 ml-1">
+                <span className="flex flex-wrap items-center gap-1 ml-1">
                   <span className="text-slate-500">取近</span>
                   {LOOKBACKS.map((n) => (
                     <button
