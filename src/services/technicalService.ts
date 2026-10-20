@@ -1,7 +1,7 @@
 import history from '../data/etfHistorySnapshot.json';
 
 /**
- * 四象圖技術指標：趨勢、MACD 動能、均量比（成本軸另計）。
+ * 動態評分矩陣技術指標：趨勢、MACD 動能、均量比（成本軸另計）。
  * 價格類指標一律使用「還原收盤價」，避免除息被誤判成下跌。
  *
  * - 趨勢 = 價格相對 60 日均線的乖離率
@@ -10,8 +10,10 @@ import history from '../data/etfHistorySnapshot.json';
  * - 均量比 = 近 5 日平均成交量 ÷ 近 60 日平均成交量
  *
  * 轉成雷達圖 0–100 分的方式（皆為「強度/位置」刻度，非好壞評分）：
- * - trendScore = 50 + 乖離率% × 5，限制於 0–100（乖離 ±10% 為極端）
- * - macdScore  = 50 + 柱狀體% × 50，限制於 0–100（柱狀體 ±1% 為極端，50 代表柱為 0）
+ * - 兩軸都先除以該標的自身的日報酬標準差（波動），再用 tanh 壓縮到 0–100，50 代表持平：
+ *   不同波動的 ETF 才有可比的刻度，也不會被固定門檻壓到 0 或 100 而看起來像「沒有評分」。
+ * - trendScore = 50 + 50 × tanh(乖離率% ÷ (日波動% × √30) ÷ 1.5)
+ * - macdScore  = 50 + 50 × tanh(柱狀體% ÷ 日波動% ÷ 0.8)
  * - volScore   = 均量比 × 50，限制於 0–100（1.0 = 50 分，2.0 以上滿格）
  */
 export interface TechnicalMetrics {
@@ -63,6 +65,12 @@ export function computeTechnicalMetrics(etfId: string): TechnicalMetrics | null 
   const histogram = difLast - signalLast;
   const histogramPct = (histogram / last) * 100;
 
+  // 日報酬標準差（%）：作為趨勢與 MACD 兩軸的波動刻度
+  const rets = px.slice(1).map((v, i) => v / px[i] - 1);
+  const retMean = mean(rets);
+  const dailyVolPct = Math.max(Math.sqrt(mean(rets.map((r) => (r - retMean) ** 2))) * 100, 0.1);
+  const squash = (z: number) => 50 + 50 * Math.tanh(z);
+
   const vol = series.volume ?? [];
   const avgVol5 = vol.length >= 60 ? mean(vol.slice(-5)) : 0;
   const avgVol60 = vol.length >= 60 ? mean(vol.slice(-60)) : 0;
@@ -100,8 +108,8 @@ export function computeTechnicalMetrics(etfId: string): TechnicalMetrics | null 
     avgVol5,
     avgVol60,
     totalReturn1Y,
-    trendScore: clamp(50 + trendDeviationPct * 5),
-    macdScore: clamp(50 + histogramPct * 50),
+    trendScore: squash(trendDeviationPct / (dailyVolPct * Math.sqrt(30)) / 1.5),
+    macdScore: squash(histogramPct / dailyVolPct / 0.8),
     volScore: clamp(volRatio * 50),
     returnScore: Number(returnScore.toFixed(1)),
   };

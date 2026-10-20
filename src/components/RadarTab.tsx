@@ -168,7 +168,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               全市場 ETF 穿透體檢與量化評分矩陣
             </h1>
             <p className="text-sm text-slate-400 leading-relaxed">
-              以還原收盤價計算，依據趨勢（相對 60 日均線）、MACD 動能、均量比（量能）與近 1 年含息總報酬（實質賺錢戰績）繪製四象雷達。
+              以還原收盤價計算，依據趨勢（相對 60 日均線）、MACD 動能、均量比（量能）與近 1 年含息總報酬（實質賺錢戰績）繪製四軸動態評分矩陣。
             </p>
           </div>
 
@@ -243,7 +243,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
           <div className="lg:col-span-5 flex flex-col items-center p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
             <div className="flex items-center justify-between w-full border-b border-slate-800 pb-3">
               <span className="text-xs font-bold text-slate-300">
-                【{currentEtf.etfId}】四象限幾何雷達
+                【{currentEtf.etfId}】量化動態評分矩陣
               </span>
               <div className="flex items-center space-x-2">
                 {currentEtf.currentPrice ? (
@@ -328,7 +328,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
             </div>
 
             <p className="w-full text-[10px] text-slate-500 leading-relaxed">
-              價格與量能指標以還原收盤價計算（資料至 {tech?.asOf ?? '無資料'}）。MACD 為 12/26/9，柱狀體以價格百分比標準化；均量比為 5 日均量對 60 日均量；總回報為近 1 年含息累積報酬（0% 為 40 分，60%+ 為極佳）。皆為客觀量化指標，不代表買賣建議。
+              價格與量能指標以還原收盤價計算（資料至 {tech?.asOf ?? '無資料'}）。MACD 為 12/26/9，柱狀體與乖離率皆除以該標的日報酬標準差後換算 0–100 分（50 為持平，不設固定門檻，避免高波動標的被壓成 0 分）；均量比為 5 日均量對 60 日均量；總回報為近 1 年含息累積報酬（0% 為 40 分，60%+ 為極佳）。皆為客觀量化指標，不代表買賣建議。
             </p>
 
             {/* Score Legend Grid */}
@@ -336,7 +336,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
                 <div className="text-[10px] text-sky-400 font-semibold">📈 趨勢（相對 60 日均線）</div>
                 <div className="text-lg font-bold font-mono text-slate-100">{netScore.toFixed(1)}</div>
-                <div className="text-[10px] text-slate-500">乖離 {tech ? `${tech.trendDeviationPct >= 0 ? '+' : ''}${tech.trendDeviationPct.toFixed(2)}%` : '-'}（±10% 為極端）</div>
+                <div className="text-[10px] text-slate-500">乖離 {tech ? `${tech.trendDeviationPct >= 0 ? '+' : ''}${tech.trendDeviationPct.toFixed(2)}%` : '-'}（已依該標的波動標準化）</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
                 <div className="text-[10px] text-emerald-400 font-semibold">📊 MACD 動能（柱狀體）</div>

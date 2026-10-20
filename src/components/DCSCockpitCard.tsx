@@ -137,10 +137,10 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
             <button
               onClick={() => onOpenRadar(dcs.ticker)}
               className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-[11px] font-semibold transition cursor-pointer"
-              title="檢視四象限基本面與穿透風險雷達"
+              title="檢視量化動態評分矩陣（基本面與穿透風險）"
             >
               <Radar className="w-3.5 h-3.5 text-cyan-400" />
-              <span>四象限基本面雷達</span>
+              <span>量化動態評分矩陣</span>
             </button>
           )}
         </div>

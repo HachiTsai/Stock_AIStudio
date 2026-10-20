@@ -21,7 +21,7 @@ const TABS = {
     label: '客觀趨勢情報中心',
     modals: { signal: (p) => p.locator('button.w-full.text-left').first().click() },
   },
-  radar: { label: '四象限基本面雷達', modals: {} },
+  radar: { label: '量化動態評分矩陣', modals: {} },
   swing: { label: '波段觀察', modals: { 'stock-chart': (p) => p.locator('td button[title^="看即時價"]').first().click() } },
   dividends: { label: '股利入帳與達標試算', modals: {} },
 };

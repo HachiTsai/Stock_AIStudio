@@ -118,7 +118,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   const [selected, setSelected] = useState<IntelligenceSignal | null>(null);
   const dz = useDialogZoom();
 
-  // Compute live objective trend synthesis (連動四象圖與基本面體檢庫)
+  // Compute live objective trend synthesis (連動動態評分矩陣與基本面體檢庫)
   const synthesis = synthesizeObjectiveTrends(signals, baseDividendPerShare, ticker);
 
   // 最新到最舊（同日以 id 大者在前）
@@ -234,14 +234,14 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
 
           <ScoreTrend points={history} />
 
-          {/* 3 Core Dimension Scores (連動 00882 四象圖與全市場基本面體檢庫) */}
+          {/* 3 Core Dimension Scores (連動 00882 動態評分矩陣與全市場基本面體檢庫) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3">
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800/90 flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs font-bold text-slate-200">① 配息續航力維度</div>
                   <div className="text-[10px] text-emerald-400 font-medium mt-0.5">
-                    四象圖基準連動
+                    動態評分矩陣基準連動
                   </div>
                 </div>
                 <div className="text-right font-mono">
@@ -267,7 +267,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 <div>
                   <div className="text-xs font-bold text-slate-200">② 估值與安全邊際</div>
                   <div className="text-[10px] text-teal-400 font-medium mt-0.5">
-                    四象圖基準連動
+                    動態評分矩陣基準連動
                   </div>
                 </div>
                 <div className="text-right font-mono">
@@ -293,7 +293,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 <div>
                   <div className="text-xs font-bold text-slate-200">③ 稅費與匯率摩擦</div>
                   <div className="text-[10px] text-amber-400 font-medium mt-0.5">
-                    四象圖基準連動
+                    動態評分矩陣基準連動
                   </div>
                 </div>
                 <div className="text-right font-mono">
@@ -321,7 +321,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 onClick={() => onNavigateTab('radar')}
                 className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 font-medium transition cursor-pointer"
               >
-                <span>對照【全市場體檢雷達】四象圖原始量化維度</span>
+                <span>對照【量化動態評分矩陣】原始量化維度</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
