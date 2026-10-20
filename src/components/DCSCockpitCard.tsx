@@ -16,6 +16,7 @@ import { Holding } from '../types/portfolio';
 import { ScorePoint } from '../services/signalsFeedService';
 import { evaluateDCSControl } from '../utils/dcsControlEngine';
 import { usePrivacy } from '../context/PrivacyContext';
+import { SHOW_INTELLIGENCE_TAB } from '../config/features';
 
 interface DCSCockpitCardProps {
   holding: Holding;
@@ -237,6 +238,7 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
           </div>
         </div>
 
+        {SHOW_INTELLIGENCE_TAB && (
         <button
           onClick={() => onNavigateTab('intelligence')}
           className="flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-sans text-xs transition cursor-pointer"
@@ -244,6 +246,7 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
           <span>查看情報與評分趨勢</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
+        )}
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import { Holding, DividendRecord, Transaction, IntelligenceSignal } from './type
 import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
+import { SHOW_INTELLIGENCE_TAB } from './config/features';
 
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -361,13 +362,13 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'intelligence' && signalsFeedError && (
+        {SHOW_INTELLIGENCE_TAB && activeTab === 'intelligence' && signalsFeedError && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {signalsFeedError}。目前顯示的是本機快取；請確認 Portfolio_00882 下的「情報與趨勢」資料夾為公開連結後重新整理。
           </div>
         )}
 
-        {activeTab === 'intelligence' && (
+        {SHOW_INTELLIGENCE_TAB && activeTab === 'intelligence' && (
           <IntelligenceTab
             signals={signals}
             baseDividendPerShare={mainHolding.annualDividendPerShare}
