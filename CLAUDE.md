@@ -20,3 +20,4 @@
    - 任何 TypeScript 變更必須先通過 `npm run lint`（`tsc --noEmit`）型別檢查；Python 變更必須於 Conda `ai-it-go` 環境通過 `pytest` 測試。
    - 使用者指示 commit 或任務完成時，Agent 必須主動調用 `.claude/skills/fin-commit` 技能完成全自動結構化提交與推送，不逐次詢問確認。
 4. **分支與 PR 鐵律**：所有變更一律在分支上進行並向 `main` 發起 Pull Request，禁止直接 push 到 `main` 分支；CI 全綠後採 Merge Commit 合併。
+5. **改畫面後先跑截圖腳本**：變更 `src/` 任何畫面後，先執行 `npm run screenshot -- --tab <分頁>` 確認手機、平板、電腦版面，再 commit；截圖慣例放 `/mnt/project-files/app-preview/`。
