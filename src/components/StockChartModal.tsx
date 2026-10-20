@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { bollinger, fibonacci, periodReturn, type Bar } from '../utils/swingIndicators';
 import { ReturnRangePicker } from './ReturnRangePicker';
+import { useDialogZoom } from './DialogZoom';
 
 interface ChartData {
   ticker: string;
@@ -41,6 +42,7 @@ const fmtTime = (sec: number | null) =>
     : '-';
 
 export const StockChartModal: React.FC<Props> = ({ ticker, name, rangeDays, onRangeChange, onClose }) => {
+  const dz = useDialogZoom();
   const [data, setData] = useState<ChartData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lookback, setLookback] = useState(60);
@@ -119,7 +121,9 @@ export const StockChartModal: React.FC<Props> = ({ ticker, name, rangeDays, onRa
       aria-modal="true"
       aria-label={`${name} 技術圖表`}
     >
+      {dz.controls}
       <div
+        {...dz.panelProps}
         className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >

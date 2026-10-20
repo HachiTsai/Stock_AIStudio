@@ -22,6 +22,7 @@ import {
   ALL_MARKET_ETF_SHEET_ID,
   normalizeEtfId,
 } from '../services/constituentsFeedService';
+import { useDialogZoom } from './DialogZoom';
 
 interface FundamentalRadarModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const FundamentalRadarModal: React.FC<FundamentalRadarModalProps> = ({
   onClose,
   initialEtfId = '00882',
 }) => {
+  const dz = useDialogZoom();
   const [summaries, setSummaries] = useState<EtfSummaryRow[]>([]);
   const [constituents, setConstituents] = useState<EtfConstituentRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -114,7 +116,8 @@ export const FundamentalRadarModal: React.FC<FundamentalRadarModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-5 sm:p-8 space-y-6">
+      {dz.controls}
+      <div {...dz.panelProps} className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-5 sm:p-8 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center space-x-3">
