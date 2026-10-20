@@ -32,3 +32,4 @@
 - **Git 結構化提交流程規範**：@[.claude/rules/git-commit-workflow.md](../../.claude/rules/git-commit-workflow.md)
 - **Git 提交流程 Skill**：@[.claude/skills/fin-commit/SKILL.md](../../.claude/skills/fin-commit/SKILL.md)
 - **Markdown Linter Skill**：@[.claude/skills/markdown-linter/SKILL.md](../../.claude/skills/markdown-linter/SKILL.md)
+- **跨 REPO 安全拉取、巡檢與提交前檢查 Skill**：@[.claude/skills/repo-manager/SKILL.md](../../.claude/skills/repo-manager/SKILL.md)
