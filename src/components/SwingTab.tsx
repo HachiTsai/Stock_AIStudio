@@ -235,6 +235,7 @@ export const SwingTab: React.FC = () => {
                   <th className="text-right font-medium px-3 py-2">RSI14</th>
                   <th className="text-right font-medium px-3 py-2">20 日線</th>
                   <th className="text-right font-medium px-3 py-2">52 週位置</th>
+                  <th className="text-right font-medium px-3 py-2" title="近 30 日高低點的費波那契回檔或反彈位置，只描述位置，不是買賣指示">費波那契位置（30 日）</th>
                   <th className="text-right font-medium px-3 py-2">2×ATR 停損價</th>
                   <th className="text-right font-medium px-3 py-2">停損距離</th>
                   <th className="text-right font-medium px-3 py-2">近 {rangeDays} 天含息報酬</th>
@@ -243,7 +244,7 @@ export const SwingTab: React.FC = () => {
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={10} className="px-3 py-6 text-center text-slate-500">
                       此市場目前沒有觀察標的。
                     </td>
                   </tr>
@@ -286,6 +287,7 @@ export const SwingTab: React.FC = () => {
                     <td className="px-3 py-2 text-right text-slate-300">
                       {r.pos52wPct == null ? '-' : `${r.pos52wPct.toFixed(0)}%`}
                     </td>
+                    <td className="px-3 py-2 text-right text-slate-300 whitespace-nowrap">{r.fibLabel || '-'}</td>
                     <td className="px-3 py-2 text-right text-slate-300">{fmt(r.stopPrice, 2)}</td>
                     <td className="px-3 py-2 text-right text-slate-300">
                       {(() => {
