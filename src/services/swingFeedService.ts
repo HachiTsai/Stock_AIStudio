@@ -16,6 +16,7 @@ export interface SwingRow {
   rsi14: number | null;
   sma20: number | null;
   pos52wPct: number | null;
+  fibLabel: string;
   stopPrice: number | null;
   stopDistancePct: number | null;
   reason: string;
@@ -51,6 +52,7 @@ export async function fetchSwingFeed(): Promise<SwingFeed> {
       rsi14: num(col(r, 'RSI14')),
       sma20: num(col(r, '20日線')),
       pos52wPct: num(col(r, '52週位置%')),
+      fibLabel: col(r, '費波那契位置30日'),
       stopPrice: num(col(r, '2xATR停損價')),
       stopDistancePct: num(col(r, '停損距離%')),
       reason: col(r, '判定依據'),
