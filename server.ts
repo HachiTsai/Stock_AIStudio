@@ -135,6 +135,52 @@ async function startServer() {
   };
   const chartCache = new Map<string, { at: number; data: any }>();
 
+  // Endpoint 0a-2: 波段觀察表格用的批次即時價（每檔快取 60 秒，避免打爆 Yahoo）。
+  const liveCache = new Map<string, { at: number; data: any }>();
+  const fetchLive = async (ticker: string) => {
+    const cached = liveCache.get(ticker);
+    if (cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
+    for (const symbol of toYahooSymbols(ticker)) {
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+          { headers: YAHOO_HEADERS }
+        );
+        if (!r.ok) continue;
+        const result = (await r.json())?.chart?.result?.[0];
+        const meta = result?.meta;
+        if (!meta || typeof meta.regularMarketPrice !== 'number') continue;
+        const closes: number[] = (result.indicators?.quote?.[0]?.close || []).filter((x: unknown) => typeof x === 'number');
+        const previousClose = closes.length >= 2 ? closes[closes.length - 2] : meta.regularMarketPrice;
+        const data = {
+          price: meta.regularMarketPrice,
+          previousClose,
+          changePct: previousClose > 0 ? ((meta.regularMarketPrice - previousClose) / previousClose) * 100 : 0,
+          quoteTime: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime : null,
+        };
+        liveCache.set(ticker, { at: Date.now(), data });
+        return data;
+      } catch {
+        // 試下一個後綴
+      }
+    }
+    return null;
+  };
+
+  app.get('/api/swing-quotes', async (req, res) => {
+    const tickers = String(req.query.tickers || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => /^[A-Za-z]{2,6}:[A-Za-z0-9.\-]{1,12}$/.test(t))
+      .slice(0, 60);
+    if (tickers.length === 0) {
+      res.status(400).json({ error: '需要 tickers，例如 TPE:2356,HKG:1919' });
+      return;
+    }
+    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchLive(t)] as const));
+    res.json({ quotes: Object.fromEntries(entries.filter(([, v]) => v)), source: 'Yahoo Finance (公開免費市場報價)' });
+  });
+
   app.get('/api/stock-chart', async (req, res) => {
     try {
       const ticker = String(req.query.ticker || '').trim();
