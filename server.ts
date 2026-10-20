@@ -137,9 +137,9 @@ async function startServer() {
 
   // Endpoint 0a-2: 波段觀察表格用的批次即時價（每檔快取 60 秒，避免打爆 Yahoo）。
   const liveCache = new Map<string, { at: number; data: any }>();
-  const fetchLive = async (ticker: string) => {
+  const fetchLive = async (ticker: string, fresh = false) => {
     const cached = liveCache.get(ticker);
-    if (cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
+    if (!fresh && cached && Date.now() - cached.at < QUOTE_CACHE_TTL_MS) return cached.data;
     for (const symbol of toYahooSymbols(ticker)) {
       try {
         const r = await fetch(
@@ -177,7 +177,7 @@ async function startServer() {
       res.status(400).json({ error: '需要 tickers，例如 TPE:2356,HKG:1919' });
       return;
     }
-    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchLive(t)] as const));
+    const entries = await Promise.all(tickers.map(async (t) => [t, await fetchLive(t, req.query.fresh === '1')] as const));
     res.json({ quotes: Object.fromEntries(entries.filter(([, v]) => v)), source: 'Yahoo Finance (公開免費市場報價)' });
   });
 

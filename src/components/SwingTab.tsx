@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { StockChartModal } from './StockChartModal';
 import { fetchSwingFeed, swingRank, type SwingFeed } from '../services/swingFeedService';
 
@@ -40,23 +41,40 @@ export const SwingTab: React.FC = () => {
     };
   }, []);
 
-  // 即時價：載入後立刻抓一次，之後每分鐘更新；失敗就沿用 Sheet 的日線收盤
+  // 即時價：載入後立刻抓一次，之後每分鐘更新；失敗就沿用 Sheet 的日線收盤。
+  // 手動「更新報價」帶 fresh=1，略過後端 60 秒快取，立刻重抓全部標的。
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
+  const tickerList = useMemo(() => (feed?.rows ?? []).map((r) => r.ticker).join(','), [feed]);
+
+  const loadQuotes = useCallback(
+    async (fresh: boolean) => {
+      if (!tickerList) return;
+      try {
+        const r = await fetch(`/api/swing-quotes?tickers=${encodeURIComponent(tickerList)}${fresh ? '&fresh=1' : ''}`);
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        setLive(j.quotes ?? {});
+        setRefreshError(false);
+      } catch {
+        setRefreshError(true);
+      }
+    },
+    [tickerList],
+  );
+
   useEffect(() => {
-    if (!feed || feed.rows.length === 0) return;
-    let cancelled = false;
-    const tickers = feed.rows.map((r) => r.ticker).join(',');
-    const load = () =>
-      fetch(`/api/swing-quotes?tickers=${encodeURIComponent(tickers)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j && !cancelled && setLive(j.quotes ?? {}))
-        .catch(() => undefined);
-    load();
-    const id = setInterval(load, LIVE_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [feed]);
+    if (!tickerList) return;
+    loadQuotes(false);
+    const id = setInterval(() => loadQuotes(false), LIVE_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [tickerList, loadQuotes]);
+
+  const manualRefresh = async () => {
+    setRefreshing(true);
+    await loadQuotes(true);
+    setRefreshing(false);
+  };
 
   const latestQuoteTime = useMemo(
     () => Math.max(0, ...Object.values(live).map((q) => q.quoteTime ?? 0)),
@@ -117,6 +135,19 @@ export const SwingTab: React.FC = () => {
             )}
           </button>
         ))}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={manualRefresh}
+          disabled={refreshing || !tickerList}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-lg border border-emerald-500/60 bg-emerald-600/20 text-emerald-200 text-sm cursor-pointer hover:bg-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? '更新中…' : '更新報價'}
+        </button>
+        {refreshError && <span className="text-xs text-rose-300">報價更新失敗，仍顯示上一次的數字</span>}
       </div>
 
       {error && (
