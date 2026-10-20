@@ -131,7 +131,7 @@ const AppContent: React.FC = () => {
           setHoldings((prev) =>
             feed.holdings.map((h) => {
               const old = prev.find((p) => p.ticker === h.ticker);
-              return old ? { ...h, currentPrice: old.currentPrice } : h;
+              return old ? { ...h, currentPrice: old.currentPrice, lastUpdated: old.lastUpdated || h.lastUpdated } : h;
             })
           );
         }
@@ -146,36 +146,47 @@ const AppContent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 自動向伺服器同步持股標的的最新即時報價，確保總覽概況「現價行情」與即時報價 100% 同步
+  // 自動向伺服器同步持股標的的最新即時報價，確保總覽概況「現價行情」與即時報價 100% 同步；
+  // 開啟時抓一次，之後每分鐘更新，「更新」時間顯示報價本身的時間（台北時區），價格沒變也會跟著動。
   useEffect(() => {
     const tickers = holdings.map((h) => h.ticker);
     if (tickers.length === 0) return;
     let cancelled = false;
 
-    fetchLiveEtfQuotes(tickers)
-      .then((quotes) => {
-        if (cancelled) return;
-        setHoldings((prev) =>
-          prev.map((h) => {
-            const q = quotes[h.ticker];
-            if (q && q.price > 0 && (q.price !== h.currentPrice || !h.lastUpdated)) {
-              const dateStr = q.time ? q.time.slice(0, 10) : h.lastUpdated;
-              return {
-                ...h,
-                currentPrice: q.price,
-                lastUpdated: dateStr,
-              };
-            }
-            return h;
-          })
-        );
-      })
-      .catch((err) => {
-        console.warn('同步持股即時報價失敗，沿用快照價格:', err);
-      });
+    const quoteStamp = (iso?: string): string | null => {
+      const d = iso ? new Date(iso) : null;
+      if (!d || Number.isNaN(d.getTime())) return null;
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(d);
+      const g = (t: string) => parts.find((x) => x.type === t)?.value ?? '';
+      return `${g('year')}-${g('month')}-${g('day')} ${g('hour')}:${g('minute')}`;
+    };
 
+    const sync = () =>
+      fetchLiveEtfQuotes(tickers)
+        .then((quotes) => {
+          if (cancelled) return;
+          setHoldings((prev) =>
+            prev.map((h) => {
+              const q = quotes[h.ticker];
+              if (!q || !(q.price > 0)) return h;
+              const stamp = quoteStamp(q.time) ?? h.lastUpdated;
+              if (q.price === h.currentPrice && stamp === h.lastUpdated) return h;
+              return { ...h, currentPrice: q.price, lastUpdated: stamp };
+            })
+          );
+        })
+        .catch((err) => {
+          console.warn('同步持股即時報價失敗，沿用快照價格:', err);
+        });
+
+    sync();
+    const timer = setInterval(sync, 60_000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [holdings.length]);
 
