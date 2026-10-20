@@ -4,6 +4,7 @@
   "description": "個人財商工程基地：持股快照追蹤、股利現金流模型、年股利50萬目標缺口試算與客觀趨勢情報中心。",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#020617",
   "theme_color": "#059669",
   "icons": [

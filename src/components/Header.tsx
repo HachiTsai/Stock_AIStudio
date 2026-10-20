@@ -1,4 +1,5 @@
 import React from 'react';
+import { ZoomControl } from './ZoomControl';
 import { Target, TrendingUp, Layers, History, Sparkles, Scale, Eye, EyeOff, Radar, Activity } from 'lucide-react';
 
 interface HeaderProps {
@@ -29,9 +30,9 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur landscape-short:static sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between flex-wrap min-h-16 py-2 gap-x-3 gap-y-2">
           {/* Logo / Branding */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold text-xl">
@@ -39,20 +40,21 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-lg text-slate-100 tracking-tight">Investment Tracker</span>
+                <span className="font-bold text-lg text-slate-100 tracking-tight whitespace-nowrap">Investment Tracker</span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
+              <p className="text-xs text-slate-400 hidden lg:block">
                 目標：每年被動股利 50 萬 TWD ｜ 高股息複利再投入
               </p>
             </div>
           </div>
 
           {/* Quick Info & Privacy Mask Toggle */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <ZoomControl />
             {/* Privacy Mask Toggle Button */}
             <button
               onClick={onTogglePrivacyMask}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+              className={`flex items-center whitespace-nowrap space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                 isPrivacyMaskActive
                   ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
@@ -72,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            <div className="flex flex-col text-right">
+            <div className="flex flex-col text-right whitespace-nowrap">
               <span className="text-xs text-slate-400">目前年股利推估</span>
               <span className="text-sm font-bold text-emerald-400 font-mono">
                 {isPrivacyMaskActive ? '••••••' : projectedAnnualDividend.toLocaleString()}{' '}

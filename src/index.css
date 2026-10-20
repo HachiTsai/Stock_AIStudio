@@ -9,3 +9,17 @@
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
+
+/* 矮螢幕橫向（手機橫放）：標頭不固定，避免吃掉可視高度 */
+@custom-variant landscape-short (@media (orientation: landscape) and (max-height: 500px));
+
+@media (orientation: landscape) and (max-height: 500px) {
+  header.landscape-short\:static {
+    position: static;
+  }
+}
+
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
