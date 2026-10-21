@@ -2,7 +2,7 @@ import importlib.util
 import subprocess
 from pathlib import Path
 
-_spec = importlib.util.spec_from_file_location("stock_repo_health", Path(__file__).parent.parent / "scripts" / "repo_health.py")
+_spec = importlib.util.spec_from_file_location("it_repo_health", Path(__file__).parent.parent / "scripts" / "repo_health.py")
 rh = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(rh)
 

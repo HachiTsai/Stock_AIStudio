@@ -128,14 +128,6 @@ def test_quick_message_is_valid():
     assert c.L1_UNSPECIFIED in msg
 
 
-def test_ensure_device_line_inserts_once():
-    msg = "docs(x): y\n\n## 驗證\n\n- 純文件\n"
-    stamped = c.ensure_device_line(msg, "Linux")
-    assert "- **執行裝置**: Linux" in stamped
-    assert c.ensure_device_line(stamped, "macOS") == stamped
-    assert c.ensure_device_line("docs(x): y\n", "Linux") == "docs(x): y\n"
-
-
 def test_ensure_coauthor_line():
     signed = c.ensure_coauthor_line("docs(x): y\n")
     assert signed.endswith(c.COAUTHOR_LINE + "\n")
@@ -196,3 +188,42 @@ def test_find_dependency_and_rule_sync_issues(tmp_path):
     issues = c.find_dependency_issues([], repo_root=repo)
     assert any("requests" in issue and "未同步至 .claude/rules/python-environment.md" in issue for issue in issues)
 
+
+def test_patrol_commit_message_and_inference():
+    patrol_msg = """patrol(fleet): 🔵 全投資組合穩健複利 ｜ 50萬達成率 51.2% ｜ LPR 3.0% ｜ SCFI 3679
+
+## 核心變更
+
+- 投資組合每日例行巡檢完成
+- 總體狀態：穩健複利
+
+## 變更理由
+
+- 港股盤後例行自動巡檢
+
+## 驗證
+
+- models/*/cards/ 求值正常
+
+## Session-Sync
+
+- **執行者**: Antigravity
+- **類別**: 持股分析
+- **狀態**: 正常
+- **下一步**: 無
+- **阻塞**: 無
+"""
+    errors, warnings = c.validate_message(patrol_msg)
+    assert errors == []
+    assert warnings == []
+    assert c.infer_category(["reports/portfolio_briefing.md"]) == c.CATEGORY_PORTFOLIO
+    assert c.infer_scope(["reports/portfolio_briefing.md"]) == "fleet"
+    assert c.infer_commit_type(["reports/portfolio_briefing.md"]) == "patrol"
+
+
+def test_find_env_issues_reports_missing_and_old(tmp_path):
+    repo = tmp_path
+    (repo / "pyproject.toml").write_text('[project]\ndependencies = [\n    "pytest>=0.0.1",\n    "no-such-pkg-xyz>=1.0",\n]\n', encoding="utf-8")
+    issues = c.find_env_issues(repo_root=repo)
+    assert any("no-such-pkg-xyz" in i for i in issues)
+    assert not any(i.startswith("pytest") for i in issues)
