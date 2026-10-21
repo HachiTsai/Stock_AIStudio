@@ -34,6 +34,14 @@
 
 ## 3. 標準提交步驟
 
+0. **開工先同步**（本機與雲端 Claude 協作時必做）：
+
+   ```bash
+   python3 .claude/skills/fin-commit/scripts/committer.py --sync
+   ```
+
+   只做 fast-forward；有未提交變更、與遠端分叉時不動並回報。環境懷疑有問題時用 `--patrol` 巡檢。
+
 1. **暫存與檢查**：
 
    ```bash
@@ -55,6 +63,7 @@
 
 ## 4. 安全防護與依賴防呆
 
+- **受保護分支攔截**：要推送時若目前在 `main`，腳本中止（`--no-push` 本機提交不受限）；變更 `.claude/` 卻沒動到 rules 或索引時會提醒。
 - **敏感檔案攔截**：暫存區若包含 `.env*`、憑證私鑰、`credentials.json` 等檔案，腳本將自動中止並阻擋提交（可加 `--allow-sensitive` 解除）。
 - **Python 依賴與規則同步攔截**：AST 自動分析暫存 Python 檔的 `import` 是否登記於 `pyproject.toml`，並驗證 `pyproject.toml` 與 `.claude/rules/python-environment.md` 是否 100% 同步（可加 `--allow-missing-deps` 略過）。
 
