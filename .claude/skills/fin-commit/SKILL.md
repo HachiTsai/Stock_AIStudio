@@ -19,7 +19,7 @@ python3 .claude/skills/fin-commit/scripts/committer.py --stage-list <paths...>
 
 # 2. 依指令中的 diff 與規格書 §4 模板，把訊息寫入 .git/COMMIT_MSG_TEMP
 
-# 3. 檢查並提交（補執行裝置、Co-Author；不合規即擋下；預設會 push）
+# 3. 檢查並提交（Markdown lint、補 Co-Author；不合規即擋下；預設會 push）
 python3 .claude/skills/fin-commit/scripts/committer.py --no-stage --message-file .git/COMMIT_MSG_TEMP
 ```
 
@@ -46,13 +46,12 @@ python3 .claude/skills/fin-commit/scripts/committer.py --no-stage --message-file
 | `--install-hook` | 安裝 commit-msg hook，讓直接 `git commit` 也經過檢查 |
 | `--sync` | 安全拉取：`fetch --prune` 後只做 `--ff-only`；有未提交變更、與遠端分叉時不動並回報，分支已併入 `main` 或落後 `main` 時提醒；絕不 rebase／reset／force |
 | `--fetch-only` | 搭配 `--sync`：只 fetch 並回報落後，不快轉 |
-| `--patrol` | 巡檢系統工具（git、python3、uv、gh）、git 狀態、Python 版本、`pyproject.toml` 直接依賴是否已安裝；只回報，不安裝 |
+| `--patrol` | 巡檢系統工具（git、python3、uv、gh）、git 狀態，環境比對沿用 `--check-env`；只回報，不安裝 |
 
 ## 自動補強與檢查
 
 - **Markdown lint**：提交前用 `markdown-linter` skill 檢查暫存區的 `.md`，沒通過就不提交。
 
-- **執行裝置**：寫進「## 驗證」區塊；可用環境變數 `AGENT_DEVICE` 覆蓋，否則標作業系統。
 - **Co-Authored-By: Claude**：已有 Claude 署名時不重複。
 
 ## 範例：交易紀錄

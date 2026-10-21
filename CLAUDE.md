@@ -9,6 +9,7 @@
 - **Web 開發工作流規範**：@[.claude/rules/web-development-workflow.md](.claude/rules/web-development-workflow.md)
 - **Python 執行環境規範**：@[.claude/rules/python-environment.md](.claude/rules/python-environment.md)
 - **Git 結構化提交流程規範**：@[.claude/rules/git-commit-workflow.md](.claude/rules/git-commit-workflow.md)
+- **Markdown 格式檢查技能**：@[.claude/skills/markdown-linter/SKILL.md](.claude/skills/markdown-linter/SKILL.md)
 
 ---
 
