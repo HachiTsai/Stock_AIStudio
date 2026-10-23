@@ -2,6 +2,7 @@ name: Refresh ETF data
 
 # 每日台北時間 16:30（UTC 08:30，台股收盤結算後）更新 ETF 價格/配息/成交量快照與集保受益人數；
 # 有變動時開 PR（不直接推 main）。也可手動觸發。
+# 開 PR 改用 AUTO_MERGE_PAT：GITHUB_TOKEN 開的 PR 不會觸發 CI，ci.yml 的 auto-merge 就永遠等不到綠燈。
 on:
   schedule:
     - cron: "30 8 * * *"
@@ -24,7 +25,7 @@ jobs:
         run: npm run fetch:etf
       - name: 有變動則開 PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}
         run: |
           if git diff --quiet -- src/data; then
             echo "資料無變動"
