@@ -454,7 +454,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                 <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                   <div className="text-[10px] text-slate-400">① 內扣總費用率 (TER)</div>
                   <div className="text-base font-extrabold font-mono text-slate-100 mt-0.5">
@@ -483,13 +483,6 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                   <div className="text-[9px] text-slate-500 mt-0.5">
                     {currentEtf.stampTaxPct === 0 ? '債券 ETF 依法停徵' : '股票 ETF 法定稅率'}
                   </div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <div className="text-[10px] text-slate-400">④ 摩擦友善度評級</div>
-                  <div className="text-base font-extrabold font-mono text-amber-400 mt-0.5">
-                    {currentEtf.fricScore.toFixed(1)} 分
-                  </div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">總摩擦越低評分越高</div>
                 </div>
               </div>
 

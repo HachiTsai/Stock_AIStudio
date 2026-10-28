@@ -21,21 +21,16 @@ import {
   calculateRealCostPerShare, 
   calculateYield, 
   calculateUnrealizedPnL, 
-  formatTWD, 
   formatShares 
 } from '../utils/calculations';
 import { LatestQuoteModal } from './LatestQuoteModal';
 import { usePrivacy } from '../context/PrivacyContext';
-import { DCSCockpitCard } from './DCSCockpitCard';
-import { ScorePoint } from '../services/signalsFeedService';
-import { FundamentalRadarModal } from './FundamentalRadarModal';
 
 interface OverviewTabProps {
   holdings: Holding[];
   dividends: DividendRecord[];
   onNavigateTab: (tab: string) => void;
   onUpdateHolding: (holding: Holding) => void;
-  latestScore?: ScorePoint | null;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -43,11 +38,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   dividends,
   onNavigateTab,
   onUpdateHolding,
-  latestScore = null,
 }) => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
-  const [isRadarModalOpen, setIsRadarModalOpen] = useState(false);
-  const [radarInitialTicker, setRadarInitialTicker] = useState('00882');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { isPrivacyMaskActive, maskTWD, maskShares, maskRawShares, maskCost, maskPct } = usePrivacy();
@@ -98,8 +90,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </h1>
             <p className="text-sm text-slate-400 leading-relaxed">
               以高股息 ETF 為主軸，股息 100% 再投入（Reinvest）啟動複利飛輪。當前推估年股利已達{' '}
-              <strong className="text-slate-200">{maskTWD(goalStats.projectedAnnualDividend)} TWD</strong>
-              ，進度 <strong className="text-emerald-400">{maskPct(goalStats.progressPct, false)}</strong>。
+              <strong className="text-slate-200">{maskTWD(goalStats.projectedAnnualDividend)} TWD</strong>。
             </p>
           </div>
 
@@ -129,36 +120,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </button>
           </div>
 
-        </div>
-
-        {/* Progress Bar & Milestone markers */}
-        <div className="mt-8 space-y-3">
-          <div className="flex justify-between items-center text-xs font-medium">
-            <span className="text-slate-400">目前達成率</span>
-            <span className="font-mono font-bold text-emerald-400 text-base">
-              {maskPct(goalStats.progressPct, false)}
-              <span className="text-xs text-slate-400 font-normal ml-2">
-                (已推估 {maskTWD(goalStats.projectedAnnualDividend)} / 目標 {formatTWD(goalStats.target)} TWD)
-              </span>
-            </span>
-          </div>
-
-          <div className="w-full h-3.5 bg-slate-950/80 rounded-full overflow-hidden p-0.5 border border-slate-800 relative">
-            <div
-              className="h-full bg-gradient-to-r from-teal-500 via-emerald-500 to-emerald-400 rounded-full transition-all duration-1000 shadow-inner"
-              style={{ width: `${Math.min(goalStats.progressPct, 100)}%` }}
-            />
-          </div>
-
-          <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-1">
-            <span>0% (0)</span>
-            <span>25% (12.5萬)</span>
-            <span className="text-emerald-400 font-semibold">
-              ▲ {isPrivacyMaskActive ? '••%' : `${goalStats.progressPct.toFixed(0)}%`} 目前 ({isPrivacyMaskActive ? '••萬' : `${(goalStats.projectedAnnualDividend / 10000).toFixed(0)}萬`})
-            </span>
-            <span>75% (37.5萬)</span>
-            <span>100% 目標 (50萬)</span>
-          </div>
         </div>
 
         {/* Gap & Required Capital Callout */}
@@ -193,20 +154,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </div>
       </div>
-
-      {/* 核心投資決策儀表：年度目標追蹤與配置建議 */}
-      {mainHolding && (
-        <DCSCockpitCard
-          holding={mainHolding}
-          latestScore={latestScore}
-          onNavigateTab={onNavigateTab}
-          onOpenRadar={(ticker) => {
-            setRadarInitialTicker(ticker);
-            setIsRadarModalOpen(true);
-          }}
-        />
-      )}
-
 
       {/* Main KPI Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -458,13 +405,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 4500);
         }}
-      />
-
-      {/* Fundamental & Risk Radar Modal */}
-      <FundamentalRadarModal
-        isOpen={isRadarModalOpen}
-        onClose={() => setIsRadarModalOpen(false)}
-        initialEtfId={radarInitialTicker}
       />
     </div>
   );

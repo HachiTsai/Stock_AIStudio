@@ -72,7 +72,6 @@ export function calculateProjectedDividend(holdings: Holding[]): number {
  */
 export function calculateGoalStats(holdings: Holding[], customTarget: number = TARGET_ANNUAL_DIVIDEND) {
   const projectedAnnualDividend = calculateProjectedDividend(holdings);
-  const progressPct = customTarget > 0 ? (projectedAnnualDividend / customTarget) * 100 : 0;
   const gap = Math.max(0, customTarget - projectedAnnualDividend);
   
   // Weighted average yield across portfolio
@@ -93,7 +92,6 @@ export function calculateGoalStats(holdings: Holding[], customTarget: number = T
   return {
     target: customTarget,
     projectedAnnualDividend,
-    progressPct,
     gap,
     weightedYieldPct,
     requiredCapital: Math.round(requiredCapital),

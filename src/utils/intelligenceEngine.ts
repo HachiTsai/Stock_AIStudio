@@ -260,7 +260,7 @@ export function synthesizeObjectiveTrends(
 
   const baseDivScore = summary?.div_score ? Number(summary.div_score) : 66.5;
   const baseValScore = summary?.val_score ? Number(summary.val_score) : 95.2;
-  const baseFricScore = taxMetrics?.fricScore ?? (summary?.fric_score ? Number(summary.fric_score) : 80.5);
+  const baseFricScore = summary?.fric_score ? Number(summary.fric_score) : 80.5;
 
   const dimStats: Record<SignalDimension, ObjectiveDimensionStat> = {
     dividend_sustainability: {
