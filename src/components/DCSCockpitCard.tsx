@@ -157,7 +157,7 @@ export const DCSCockpitCard: React.FC<DCSCockpitCardProps> = ({
             <span className="font-mono text-emerald-400">500,000 TWD/年</span>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-xs text-slate-400">目前推估年股利 (PV)</span>
+            <span className="text-xs text-slate-400">目前推估年股利 (PV，未扣稅費)</span>
             <span className="text-xl font-bold font-mono text-slate-100">
               {maskTWD(dcs.processValuePV)}
               <span className="text-xs text-slate-500 ml-1">TWD</span>

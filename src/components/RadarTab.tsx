@@ -465,11 +465,11 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                   <div className="text-[10px] text-slate-400">② 二代健保實質負擔</div>
                   <div className="text-base font-extrabold font-mono text-slate-100 mt-0.5">
-                    {currentEtf.nhiPct.toFixed(3)}%
+                    {currentEtf.nhiPct === null ? '未估算' : `${currentEtf.nhiPct.toFixed(3)}%`}
                   </div>
                   <div className="text-[9px] text-slate-500 mt-0.5">
                     {currentEtf.etfId === '00882'
-                      ? '34.36% 大陸所得課 2.11%'
+                      ? '大陸營利所得部分課 2.11%，各期比例不同'
                       : currentEtf.etfId.endsWith('B') || ['00646','00662','00757','00830','00712','00645','00657','00661','00949','00951','00954','00956'].includes(currentEtf.etfId)
                       ? '海外所得免健保 (0%)'
                       : '54C 境內所得課 2.11%'}

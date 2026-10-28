@@ -167,7 +167,7 @@ export const DividendPlanner: React.FC<DividendPlannerProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
         {[
           ['殖利率', `${result.yieldPct.toFixed(2)}%`],
-          ['現在年實收', `${maskTWD(result.annualNetNow)}`],
+          ['現在年配息（毛額）', `${maskTWD(result.annualGrossNow)}`],
           ['距目標缺口', result.gapNow === 0 ? '已達標' : `${maskTWD(result.gapNow)}（${isPrivacyMaskActive ? '•••' : result.lotsNeededNow} 張）`],
           ['達標所需時間', result.yearsToTarget === null ? `> ${MAX_YEARS} 年` : `約 ${result.yearsToTarget} 年（${result.reachMonth}）`],
         ].map(([k, v]) => (

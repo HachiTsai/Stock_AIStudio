@@ -184,15 +184,15 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
       const cur = simulatePlan(params);
       addMarker(mapX(params.price), yOfYears(cur.yearsToTarget), mapZ(params.divPerShare));
     } else {
-      // 複利軌跡：X 年份、Y 年實收、Z 持股張數
+      // 複利軌跡：X 年份、Y 年配息毛額、Z 持股張數
       const { trajectory } = simulatePlan(params);
-      const maxNet = Math.max(params.target * 1.4, ...trajectory.map((t) => t.annualNet));
+      const maxNet = Math.max(params.target * 1.4, ...trajectory.map((t) => t.annualGross));
       const minShares = trajectory[0].shares;
       const maxShares = Math.max(minShares * 1.01, trajectory[trajectory.length - 1].shares);
       const toVec = (t: (typeof trajectory)[number]) =>
         new THREE.Vector3(
           (t.year / MAX_YEARS) * SPAN - SPAN / 2,
-          -7 + (t.annualNet / maxNet) * 14,
+          -7 + (t.annualGross / maxNet) * 14,
           ((t.shares - minShares) / (maxShares - minShares)) * SPAN - SPAN / 2,
         );
       const pts = trajectory.map(toVec);
@@ -204,7 +204,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
       );
       trajectory.forEach((t, i) => {
         if (t.year % 5 !== 0) return;
-        const reached = t.annualNet >= params.target;
+        const reached = t.annualGross >= params.target;
         const s = new THREE.Mesh(
           new THREE.SphereGeometry(0.35, 16, 16),
           new THREE.MeshStandardMaterial({ color: reached ? 0x10b981 : 0x06b6d4 }),
@@ -287,7 +287,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
         `股價 ${hit.price.toFixed(2)}｜配息 ${hit.div.toFixed(2)}`,
         `殖利率 ${r.yieldPct.toFixed(2)}%`,
         r.yearsToTarget === null ? `${MAX_YEARS} 年內無法達標` : `達標約 ${r.yearsToTarget} 年`,
-        `現在年實收 ${maskTWD(r.annualNetNow)}`,
+        `現在年配息（毛額）${maskTWD(r.annualGrossNow)}`,
         '點一下套用',
       ],
     });
@@ -377,7 +377,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
             </>
           ) : (
             <>
-              <div className="text-slate-200 font-semibold">年實收隨時間的複利成長</div>
+              <div className="text-slate-200 font-semibold">年配息毛額隨時間的複利成長</div>
               <div>X 軸：第 0～{MAX_YEARS} 年；Z 軸：持股張數</div>
               <div>綠色平面：年股利目標；紫環：一次加碼之後的第一年</div>
             </>
@@ -390,7 +390,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
           <div>殖利率 {cur.yieldPct.toFixed(2)}%</div>
           <div>{cur.yearsToTarget === null ? `${MAX_YEARS} 年內無法達標` : `達標約 ${cur.yearsToTarget} 年（${cur.reachMonth}）`}</div>
           {params.lumpSumTwd > 0 && <div>加碼 {maskTWD(params.lumpSumTwd)}（{params.lumpSumMonth}）</div>}
-          <div>現在年實收 {maskTWD(cur.annualNetNow)}</div>
+          <div>現在年配息（毛額）{maskTWD(cur.annualGrossNow)}</div>
         </div>
 
         {hover && (
@@ -410,7 +410,7 @@ export const Dynamic3DChart: React.FC<Dynamic3DChartProps> = ({ params, centerPr
           拖曳旋轉｜滾輪縮放{viewMode === 'years' ? '｜點曲面套用' : ''}
         </div>
       </div>
-      <p className="text-[11px] text-slate-500">目標 {formatTWD(params.target)} TWD／年（實收）</p>
+      <p className="text-[11px] text-slate-500">目標 {formatTWD(params.target)} TWD／年（毛額，未扣稅費）</p>
     </div>
   );
 };

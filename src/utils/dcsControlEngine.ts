@@ -1,15 +1,13 @@
 import { DCSControlState, TacticalPosture } from '../types/portfolio';
 import { ScorePoint } from '../services/signalsFeedService';
 
+// 股利一律以毛額計（未扣二代健保與其他稅費）；稅費比例與配息率不寫死，由輸入數字帶入。
 export const DCS_CALIBRATION = {
   SETPOINT_SP: 500000,
-  PAYOUT_RATIO: 0.954,
-  TAX_RETENTION: 0.9922774, // 1 - 36.6% * 2.11%
   CHEAP_THRESHOLD: 0.082,
   CHEAP_EXIT_THRESHOLD: 0.078,
   EXPENSIVE_THRESHOLD: 0.048,
   DEFAULT_BENCHMARK_PRICE: 15.20,
-  DEFAULT_BENCHMARK_DIVIDEND: 0.86,
 };
 
 export interface SnowballYear {
@@ -25,7 +23,6 @@ export function simulateSnowballTimeline(
   initialShares: number,
   annualDiv: number,
   price: number,
-  taxRetention: number = DCS_CALIBRATION.TAX_RETENTION,
   targetIncome: number = DCS_CALIBRATION.SETPOINT_SP,
   maxYears: number = 30
 ): { yearsToGoal: number; timeline: SnowballYear[] } {
@@ -34,7 +31,7 @@ export function simulateSnowballTimeline(
   let yearsToGoal = maxYears;
   let reached = false;
 
-  const initialIncome = currentShares * annualDiv * taxRetention;
+  const initialIncome = currentShares * annualDiv;
   timeline.push({ year: 0, shares: Math.round(currentShares), annualDividendTwd: Math.round(initialIncome) });
 
   if (initialIncome >= targetIncome) {
@@ -43,10 +40,10 @@ export function simulateSnowballTimeline(
 
   for (let year = 1; year <= maxYears; year++) {
     // 假設每年配息兩次（各 50%）
-    const semiDiv = (annualDiv * currentShares * taxRetention) / 2.0;
+    const semiDiv = (annualDiv * currentShares) / 2.0;
     const reinvestedShares = (semiDiv * 2.0) / price;
     currentShares += reinvestedShares;
-    const projectedIncome = currentShares * annualDiv * taxRetention;
+    const projectedIncome = currentShares * annualDiv;
 
     timeline.push({
       year,
@@ -72,27 +69,26 @@ export function simulateSnowballTimeline(
 export function evaluateDCSControl(
   shares: number = 300000,
   price: number = DCS_CALIBRATION.DEFAULT_BENCHMARK_PRICE,
-  annualDividend: number = DCS_CALIBRATION.DEFAULT_BENCHMARK_DIVIDEND,
+  annualDividend: number = 0,
   latestScore: ScorePoint | null = null,
   southboundFlow: number = 0
 ): DCSControlState {
   const currentPrice = price > 0 ? price : DCS_CALIBRATION.DEFAULT_BENCHMARK_PRICE;
-  const modelAnnualDividend = annualDividend > 0 ? annualDividend : DCS_CALIBRATION.DEFAULT_BENCHMARK_DIVIDEND;
+  const modelAnnualDividend = Math.max(0, annualDividend);
   const modelYield = modelAnnualDividend / currentPrice;
   const modelYieldPct = Number((modelYield * 100).toFixed(2));
 
   const setpointSP = DCS_CALIBRATION.SETPOINT_SP;
-  const processValuePV = Math.round(shares * modelAnnualDividend * DCS_CALIBRATION.TAX_RETENTION);
+  const processValuePV = Math.round(shares * modelAnnualDividend);
   const systemError = setpointSP - processValuePV;
   const achievementPct = Number(((processValuePV / setpointSP) * 100).toFixed(2));
 
-  const effectiveYieldTwdPerShare = modelAnnualDividend * DCS_CALIBRATION.TAX_RETENTION;
-  const capitalNeededTwd = systemError > 0 && effectiveYieldTwdPerShare > 0
-    ? Math.round((systemError / effectiveYieldTwdPerShare) * currentPrice)
+  const capitalNeededTwd = systemError > 0 && modelAnnualDividend > 0
+    ? Math.round((systemError / modelAnnualDividend) * currentPrice)
     : 0;
 
-  const sharesNeededBoards = systemError > 0 && effectiveYieldTwdPerShare > 0
-    ? Number((systemError / (effectiveYieldTwdPerShare * 1000)).toFixed(1))
+  const sharesNeededBoards = systemError > 0 && modelAnnualDividend > 0
+    ? Number((systemError / (modelAnnualDividend * 1000)).toFixed(1))
     : 0;
 
   // 風控互鎖判定（BLS）
@@ -143,7 +139,6 @@ export function evaluateDCSControl(
     shares,
     modelAnnualDividend,
     currentPrice,
-    DCS_CALIBRATION.TAX_RETENTION,
     setpointSP
   );
 

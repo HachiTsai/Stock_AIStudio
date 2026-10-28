@@ -1,8 +1,7 @@
 // 股利達標試算：3D 圖與試算摘要共用同一套算法，確保同一組參數得到同一個答案。
 // 假設：股價、每股年配息在試算期間持平；00882 半年配一次（1 月、7 月）；一次加碼於指定年月買進；
-// 二代健保以實際觀察的有效扣除率 0.72% 估算；再投入以當時股價買進。以上皆為推估，不是事實。
+// 股利以毛額計（未扣二代健保與其他稅費），目標也以毛額比較；再投入以當時股價買進。以上皆為推估，不是事實。
 
-export const NHI_EFFECTIVE_RATE = 0.0072;
 export const MAX_YEARS = 30;
 
 export interface PlanParams {
@@ -12,19 +11,19 @@ export interface PlanParams {
   reinvestPct: number; // 股息再投入比例 0–100
   lumpSumTwd: number; // 一次加碼金額
   lumpSumMonth: string; // 加碼年月 YYYY-MM
-  target: number; // 年股利目標（實收）
+  target: number; // 年股利目標（毛額）
   startMonth?: string; // 試算起點 YYYY-MM，預設本月
 }
 
 export interface PlanYear {
   year: number;
   shares: number;
-  annualNet: number;
+  annualGross: number;
 }
 
 export interface PlanResult {
   yieldPct: number;
-  annualNetNow: number; // 現有持股的年實收（不含未來加碼）
+  annualGrossNow: number; // 現有持股的年配息毛額（不含未來加碼）
   gapNow: number;
   lotsNeededNow: number; // 不靠複利、一次補足缺口需要的張數
   yearsToTarget: number | null; // 達標所需年數（月精度，取一位小數），超過 MAX_YEARS 為 null
@@ -45,17 +44,15 @@ const fromIndex = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).p
 
 // 逐月模擬：00882 在 1 月、7 月配息（各半），配息當月依比例再投入；加碼在指定年月買進。
 export function simulatePlan(p: PlanParams): PlanResult {
-  const netRate = 1 - NHI_EFFECTIVE_RATE;
-  const annualNet = (s: number) => s * p.divPerShare * netRate;
+  const annualGross = (s: number) => s * p.divPerShare;
   const start = toIndex(p.startMonth || currentMonth());
   const lumpOffset = p.lumpSumTwd > 0 && /^\d{4}-\d{2}$/.test(p.lumpSumMonth) ? toIndex(p.lumpSumMonth) - start : null;
   const lumpShares = p.price > 0 ? p.lumpSumTwd / p.price : 0;
 
   let shares = p.shares;
-  const annualNetNow = annualNet(shares);
-  const gapNow = Math.max(0, p.target - annualNetNow);
-  const netPerShare = p.divPerShare * netRate;
-  const lotsNeededNow = netPerShare > 0 ? Math.ceil(gapNow / netPerShare / 1000) : 0;
+  const annualGrossNow = annualGross(shares);
+  const gapNow = Math.max(0, p.target - annualGrossNow);
+  const lotsNeededNow = p.divPerShare > 0 ? Math.ceil(gapNow / p.divPerShare / 1000) : 0;
 
   const trajectory: PlanYear[] = [];
   let reachOffset: number | null = null;
@@ -63,16 +60,16 @@ export function simulatePlan(p: PlanParams): PlanResult {
     if (lumpOffset !== null && k === Math.max(0, lumpOffset)) shares += lumpShares;
     const month = (start + k) % 12; // 0 = 1 月
     if (k > 0 && (month === 0 || month === 6) && p.price > 0) {
-      const payout = (shares * p.divPerShare * netRate) / 2;
+      const payout = (shares * p.divPerShare) / 2;
       shares += (payout * (p.reinvestPct / 100)) / p.price;
     }
-    if (reachOffset === null && annualNet(shares) >= p.target) reachOffset = k;
-    if (k % 12 === 0) trajectory.push({ year: k / 12, shares, annualNet: annualNet(shares) });
+    if (reachOffset === null && annualGross(shares) >= p.target) reachOffset = k;
+    if (k % 12 === 0) trajectory.push({ year: k / 12, shares, annualGross: annualGross(shares) });
   }
 
   return {
     yieldPct: p.price > 0 ? (p.divPerShare / p.price) * 100 : 0,
-    annualNetNow,
+    annualGrossNow,
     gapNow,
     lotsNeededNow,
     yearsToTarget: reachOffset === null ? null : Math.round((reachOffset / 12) * 10) / 10,
