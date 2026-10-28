@@ -102,7 +102,6 @@ export const INITIAL_SNAPSHOTS: PortfolioSnapshot[] = [
     totalMarketValue: 4452000,
     totalRealCost: 4139880,
     projectedAnnualDividend: 300000,
-    targetProgressPct: 60.0,
     gapAmount: 200000,
     requiredCapital: 2970000,
     holdingsSummary: [

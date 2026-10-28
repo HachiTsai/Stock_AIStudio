@@ -161,7 +161,6 @@ export interface EtfTaxFeeMetrics {
   stampTaxPct: number;
   totalFrictionPct: number;
   costPerMillion: number;
-  fricScore: number;
   taxNote: string;
 }
 
@@ -221,8 +220,6 @@ function buildTaxFeeMetrics(id: string): EtfTaxFeeMetrics {
     stampTaxPct,
     totalFrictionPct: Number(totalFrictionPct.toFixed(2)),
     costPerMillion: Math.round(totalFrictionPct * 10000),
-    // 成本友善度：年損耗 0% = 100 分，每增加 1% 扣 20 分
-    fricScore: Number(Math.min(100, Math.max(0, 100 - totalFrictionPct * 20)).toFixed(1)),
     taxNote,
   };
 }
@@ -259,7 +256,6 @@ export interface EtfSummaryRow {
   netScore: number;
   divScore: number;
   valScore: number;
-  fricScore: number;
   lastModelUpdate: string;
   // 實質稅費明細
   terPct: number;
@@ -460,7 +456,6 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
           stampTaxPct: id.endsWith('B') ? 0.00 : 0.10,
           totalFrictionPct: 0.50,
           costPerMillion: 5000,
-          fricScore: 85.0,
           taxNote: '標準標的稅費模型',
         };
         return {
@@ -478,7 +473,6 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
           netScore: Number(col(r, 'net_score')) || 70,
           divScore: Number(col(r, 'div_score')) || 70,
           valScore: Number(col(r, 'val_score')) || 70,
-          fricScore: taxMetrics.fricScore,
           lastModelUpdate: col(r, 'last_model_update') || '2026-10-18',
           terPct: taxMetrics.terPct,
           nhiPct: taxMetrics.nhiPct,
@@ -500,7 +494,6 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
         stampTaxPct: id.endsWith('B') ? 0.00 : 0.10,
         totalFrictionPct: 0.50,
         costPerMillion: 5000,
-        fricScore: 85.0,
         taxNote: '標準標的稅費模型',
       };
       return {
@@ -518,7 +511,6 @@ export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
         netScore: Number(s.net_score) || 70,
         divScore: Number(s.div_score) || 70,
         valScore: Number(s.val_score) || 70,
-        fricScore: taxMetrics.fricScore,
         lastModelUpdate: s.last_model_update || '2026-10-18',
         terPct: taxMetrics.terPct,
         nhiPct: taxMetrics.nhiPct,

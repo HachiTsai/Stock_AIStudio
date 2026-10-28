@@ -6,7 +6,6 @@ import { SHOW_INTELLIGENCE_TAB } from '../config/features';
 interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  targetProgressPct: number;
   projectedAnnualDividend: number;
   signalsCount?: number;
   isPrivacyMaskActive?: boolean;
@@ -16,7 +15,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
-  targetProgressPct,
   projectedAnnualDividend,
   signalsCount = 5,
   isPrivacyMaskActive = false,
