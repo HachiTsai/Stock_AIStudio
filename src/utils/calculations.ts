@@ -1,4 +1,3 @@
-import { NHI_EFFECTIVE_RATE } from './dividendPlan';
 import { Holding } from '../types/portfolio';
 
 export const TARGET_ANNUAL_DIVIDEND = 500000; // TWD 50 萬核心目標
@@ -63,9 +62,9 @@ export function calculateUnrealizedPnL(holding: Holding): { amount: number; pct:
 /**
  * Calculate Portfolio Total Projected Annual Dividend
  */
-// 年股利實收推估：扣二代健保有效扣除率（與股利達標試算同口徑）
+// 年股利推估：持股 × 近一年每股配息，毛額（未扣二代健保與其他稅費，與股利達標試算同口徑）
 export function calculateProjectedDividend(holdings: Holding[]): number {
-  return Math.round(holdings.reduce((sum, h) => sum + h.shares * h.annualDividendPerShare * (1 - NHI_EFFECTIVE_RATE), 0));
+  return Math.round(holdings.reduce((sum, h) => sum + h.shares * h.annualDividendPerShare, 0));
 }
 
 /**

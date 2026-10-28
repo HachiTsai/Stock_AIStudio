@@ -33,7 +33,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({
   const [holdingShares, setHoldingShares] = useState(
     (holding?.shares || 300000).toString()
   );
-  const [nhiRatePct, setNhiRatePct] = useState('40.54'); // 00882 兩期加權平均約 40.54% 大陸營利所得
+  const [nhiRatePct, setNhiRatePct] = useState(''); // 00882 各期大陸營利所得比例不同，須逐期依公告填寫，不預設
   const [reinvestLots, setReinvestLots] = useState('0'); // 預設 0 張再投入
   const [filterTicker, setFilterTicker] = useState<string>('all');
 
@@ -68,7 +68,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({
     }
     // 依標的類型自動給予合理建議之二代健保課稅比率
     if (ticker === '00882') {
-      setNhiRatePct('40.54'); // 大陸地區營利所得兩期加權
+      setNhiRatePct(''); // 大陸地區營利所得比例逐期不同，清空待填
     } else if (
       ticker.toUpperCase().endsWith('B') ||
       ['00645', '00646', '00657', '00661', '00662', '00757', '00830', '00949', '00951', '00954', '00955', '00956'].includes(ticker)
@@ -184,7 +184,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({
               {maskTWD(totalNhi)} <span className="text-xs text-slate-500 font-normal">TWD</span>
             </div>
             <span className="text-[11px] text-slate-500">
-              實質扣除率約 {totalGross > 0 ? (totalNhi / totalGross * 100).toFixed(2) : '0.86'}%（依認列營利所得比例）
+              實質扣除率約 {totalGross > 0 ? (totalNhi / totalGross * 100).toFixed(2) : '0.00'}%（依認列營利所得比例）
             </span>
           </div>
         </div>
@@ -196,7 +196,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({
             <span>規則 8 & 9：二代健保補充保費（2.11%）機制解析</span>
           </div>
           <p className="text-slate-400 leading-relaxed">
-            • <strong>各標的課稅屬性不同</strong>：境內台股 ETF（如 0056、00878、00919 等）54C 股利所得課徵 2.11%；海外 ETF（如 00955 日本商社、00646 S&P500 等）與債券 ETF 屬海外所得依法免扣；00882 屬特定架構，僅大陸地區營利所得（兩期平均約 40.54%）課徵 2.11%。<br />
+            • <strong>各標的課稅屬性不同</strong>：境內台股 ETF（如 0056、00878、00919 等）54C 股利所得課徵 2.11%；海外 ETF（如 00955 日本商社、00646 S&P500 等）與債券 ETF 屬海外所得依法免扣；00882 屬特定架構，僅大陸地區營利所得部分課徵 2.11%，各期比例不同，須逐期依證交所公告填寫。<br />
             • <strong>單次給付達 20,000 元門檻始扣繳</strong>：課稅所得金額若未達 20,000 元則免扣取補充保費。<br />
             • <strong>模型不套用死板固定扣除率</strong>：推估時以「配息總額」展示，目標檢核時以「實到現金流」為準。
           </p>
@@ -288,6 +288,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({
                 type="number"
                 step="0.01"
                 value={nhiRatePct}
+                required={selectedTicker === '00882'}
                 onChange={(e) => setNhiRatePct(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100"
               />

@@ -195,7 +195,7 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
             </div>
             <h1 className="text-2xl font-bold text-slate-100">客觀趨勢歸納與正反證據天平</h1>
             <p className="text-sm text-slate-400 mt-1">
-              自動剝離主觀市場情緒，從累積的 {synthesis.totalSignals} 筆硬數據中歸納配息動能，並連動 3D 股利模型。
+              自動剝離主觀市場情緒，從累積的 {synthesis.totalSignals} 筆硬數據中歸納配息動能，並連動股利達標試算。
             </p>
           </div>
 
@@ -333,10 +333,10 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           <div className="space-y-1">
             <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
               <Sliders className="w-4 h-4" />
-              <span>客觀數據推導之 00882 年配息壓力測試區間（一鍵套入 3D 股利模型）</span>
+              <span>客觀數據推導之 00882 年配息壓力測試區間（一鍵套入股利達標試算）</span>
             </div>
             <p className="text-xs text-slate-400">
-              根據上方正反硬數據之邊際影響權重自動計算，點擊任一情境即可直接跳轉至【股利目標模型】檢視 3D 曲面與達標年數：
+              根據上方正反硬數據之邊際影響權重自動計算，點擊任一情境即可直接跳轉至【股利達標試算】檢視 3D 曲面與達標年數：
             </p>
           </div>
 
