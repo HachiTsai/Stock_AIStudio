@@ -14,7 +14,6 @@ import { fetchSignalsFeed } from './services/signalsFeedService';
 import { fetchPortfolioFeed } from './services/portfolioFeedService';
 import { fetchLiveEtfQuotes } from './services/constituentsFeedService';
 import { Holding, DividendRecord, Transaction, IntelligenceSignal } from './types/portfolio';
-import { calculateGoalStats } from './utils/calculations';
 import { EyeOff } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { SHOW_INTELLIGENCE_TAB } from './config/features';
@@ -203,7 +202,6 @@ const AppContent: React.FC = () => {
   }, [signals]);
 
   const mainHolding = holdings[0] || INITIAL_HOLDINGS[0];
-  const goalStats = calculateGoalStats(holdings);
 
   // Handlers
   const handleUpdateHolding = (updated: Holding) => {
@@ -311,7 +309,6 @@ const AppContent: React.FC = () => {
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        projectedAnnualDividend={goalStats.projectedAnnualDividend}
         signalsCount={signals.length}
         isPrivacyMaskActive={isPrivacyMaskActive}
         onTogglePrivacyMask={togglePrivacyMask}

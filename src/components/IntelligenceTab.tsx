@@ -66,14 +66,6 @@ const ScoreTrend: React.FC<{ points: ScorePoint[] }> = ({ points }) => {
             </div>
           </div>
         )}
-        {last.fricScore !== undefined && (
-          <div className="border-l border-slate-800 pl-3">
-            <div className="text-[10px] text-slate-400">摩擦評級</div>
-            <div className="text-lg font-bold font-mono text-amber-400">
-              {last.fricScore === 100 ? 80.5 : last.fricScore}
-            </div>
-          </div>
-        )}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16" preserveAspectRatio="none" role="img" aria-label="綜合趨勢分數折線">
         <line x1="0" x2={W} y1={y(50)} y2={y(50)} stroke="currentColor" className="text-slate-700" strokeDasharray="3 3" />

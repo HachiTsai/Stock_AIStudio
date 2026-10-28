@@ -6,7 +6,6 @@ import { SHOW_INTELLIGENCE_TAB } from '../config/features';
 interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  projectedAnnualDividend: number;
   signalsCount?: number;
   isPrivacyMaskActive?: boolean;
   onTogglePrivacyMask?: () => void;
@@ -15,7 +14,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
-  projectedAnnualDividend,
   signalsCount = 5,
   isPrivacyMaskActive = false,
   onTogglePrivacyMask = () => {},
@@ -71,16 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="hidden sm:inline">開啟隱私保護</span>
                 </>
               )}
-            </button>
-
-            <div className="flex flex-col text-right whitespace-nowrap">
-              <span className="text-xs text-slate-400">目前年股利推估</span>
-              <span className="text-sm font-bold text-emerald-400 font-mono">
-                {isPrivacyMaskActive ? '••••••' : projectedAnnualDividend.toLocaleString()}{' '}
-                <span className="text-xs text-slate-400 font-normal">/ 500,000 TWD</span>
-              </span>
-            </div>
-          </div>
+            </button>          </div>
         </div>
 
         {/* Navigation Tabs */}

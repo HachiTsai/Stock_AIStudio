@@ -108,7 +108,6 @@ export interface ScorePoint {
   bearWeight: number;
   divScore?: number;
   valScore?: number;
-  fricScore?: number;
   signalCount?: number;
 }
 
@@ -127,7 +126,6 @@ export async function fetchScoreHistory(): Promise<ScorePoint[]> {
     .map((r) => {
       const dScore = idx('divScore') >= 0 ? Number(r[idx('divScore')]) : undefined;
       const vScore = idx('valScore') >= 0 ? Number(r[idx('valScore')]) : undefined;
-      const fScore = idx('fricScore') >= 0 ? Number(r[idx('fricScore')]) : undefined;
       const sCount = idx('signalCount') >= 0 ? Number(r[idx('signalCount')]) : undefined;
       return {
         date: (r[idx('date')] ?? '').trim(),
@@ -136,7 +134,6 @@ export async function fetchScoreHistory(): Promise<ScorePoint[]> {
         bearWeight: Number(r[idx('bearWeight')]),
         divScore: Number.isFinite(dScore) ? dScore : undefined,
         valScore: Number.isFinite(vScore) ? vScore : undefined,
-        fricScore: Number.isFinite(fScore) ? fScore : undefined,
         signalCount: Number.isFinite(sCount) ? sCount : undefined,
       };
     })
