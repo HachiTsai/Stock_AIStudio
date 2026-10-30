@@ -2,6 +2,8 @@
 node_modules/
 .pnp
 .pnp.js
+# npm lock file; the project uses bun.lock
+package-lock.json
 
 # Production build
 dist/
