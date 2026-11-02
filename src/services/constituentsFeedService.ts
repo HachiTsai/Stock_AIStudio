@@ -1,4 +1,5 @@
 import { parseCsv } from './signalsFeedService';
+import { inferConstituentMarket } from './constituentMarkets';
 
 // Drive: Project_財商工程/Portfolio_00882/成分股股利資料庫/00882_成分股股利資料庫（資料夾為知道連結者可檢視，免登入）
 // 由 Investment_Tracker 端每月底排程（富途牛牛＋中信投信持股）重建；APP 只讀不寫。
@@ -236,6 +237,8 @@ export interface EtfConstituentRow {
   weightPct: number;
   shares: string;
   updateDate: string;
+  /** 成分股所屬市場代碼（見 constituentMarkets.ts）；來源沒有此欄且認不出時為空字串 */
+  constituentMarket: string;
 }
 
 export interface EtfSummaryRow {
@@ -415,6 +418,9 @@ export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]>
         weightPct: Number(col(r, 'weight_pct')) || Number(col(r, 'weightPct')) || 0,
         shares: col(r, 'shares'),
         updateDate: col(r, 'update_date'),
+        constituentMarket:
+          col(r, 'constituent_market').toUpperCase() ||
+          inferConstituentMarket(col(r, 'constituent_ticker'), col(r, 'constituent_name')),
       }));
     if (rows.length > 0) return rows;
     throw new Error('Empty constituents response');
@@ -428,6 +434,8 @@ export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]>
       weightPct: Number(c.weight_pct) || 0,
       shares: c.shares || '',
       updateDate: c.update_date || '2026-10-18',
+      constituentMarket: String(c.constituent_market || '').toUpperCase() ||
+        inferConstituentMarket(c.constituent_ticker, c.constituent_name),
     }));
   }
 }

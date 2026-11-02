@@ -26,6 +26,7 @@ import {
   classifyEtfMarket,
   type MarketCategory,
 } from '../services/constituentsFeedService';
+import { getConstituentMarketInfo, summarizeMarketWeights } from '../services/constituentMarkets';
 import { BondCard } from './BondCard';
 import { computeTechnicalMetrics } from '../services/technicalService';
 
@@ -113,6 +114,13 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
       priceChangePct: live.changePct,
     };
   }, [filteredSummaries, summaries, selectedTicker, liveQuotes]);
+
+  // 該標的全部成分股（不只前十大）的市場權重分布
+  const marketWeights = useMemo(() => {
+    if (!currentEtf) return [];
+    const target = normalizeEtfId(currentEtf.etfId);
+    return summarizeMarketWeights(constituents.filter((c) => normalizeEtfId(c.etfId) === target));
+  }, [constituents, currentEtf]);
 
   const currentConstituents = useMemo(() => {
     if (!currentEtf) return [];
@@ -516,6 +524,20 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                 </div>
               </div>
 
+              {marketWeights.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-slate-500 mr-1">持股市場分布</span>
+                  {marketWeights.map((m) => (
+                    <span
+                      key={m.info.code}
+                      className={`px-2 py-0.5 rounded-md border font-mono ${m.info.tone}`}
+                    >
+                      {m.info.label} {m.weightPct.toFixed(1)}%
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
               {currentConstituents.length === 0 ? (
                 <p className="text-xs text-slate-500 py-6 text-center">
                   此標的無細部成分股清單（國債型或期貨型標的）。
@@ -528,6 +550,7 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                         <th className="p-2.5">#</th>
                         <th className="p-2.5">代號</th>
                         <th className="p-2.5">成分股名稱</th>
+                        <th className="p-2.5">市場</th>
                         <th className="p-2.5 text-right">持股權重</th>
                       </tr>
                     </thead>
@@ -537,6 +560,17 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                           <td className="p-2.5 font-mono text-slate-500">{idx + 1}</td>
                           <td className="p-2.5 font-mono text-cyan-300 font-semibold">{c.constituentTicker}</td>
                           <td className="p-2.5 text-slate-200 font-medium">{c.constituentName}</td>
+                          <td className="p-2.5">
+                            {c.constituentMarket ? (
+                              <span
+                                className={`px-1.5 py-0.5 rounded border text-[10px] font-mono ${getConstituentMarketInfo(c.constituentMarket).tone}`}
+                              >
+                                {getConstituentMarketInfo(c.constituentMarket).label}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
                           <td className="p-2.5 text-right font-mono font-bold text-emerald-400">
                             {c.weightPct.toFixed(2)}%
                           </td>
