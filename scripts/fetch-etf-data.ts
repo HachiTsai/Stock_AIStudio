@@ -26,7 +26,10 @@ const TW_CODE = /^\d{4,6}[A-Z]?$/;
 /** 基本清單優先，再從全市場 ETF Sheet 的 ETF_Summary 依序補到 MAX_ETFS 檔；讀不到 Sheet 時只用基本清單。 */
 async function resolveIds(): Promise<string[]> {
   try {
-    const sheetId = JSON.parse(process.env.DRIVE_IDS ?? '{}').MARKET_ETF_SHEET_ID;
+    // Secret 可能被貼成 `DRIVE_IDS={...}` 或帶引號，與 server.ts 一樣只取第一個 {...}
+    const raw = process.env.DRIVE_IDS ?? '';
+    const obj = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+    const sheetId = JSON.parse(obj || '{}').MARKET_ETF_SHEET_ID;
     if (!sheetId) throw new Error('DRIVE_IDS 未設定 MARKET_ETF_SHEET_ID');
     const r = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=ETF_Summary`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
