@@ -41,16 +41,29 @@ async function startServer() {
   ];
   app.get('/api/drive-ids', (_req, res) => {
     const ids: Record<string, string> = {};
-    try {
-      const parsed = JSON.parse(process.env.DRIVE_IDS || '{}');
-      for (const key of APP_DRIVE_ID_KEYS) {
-        const v = parsed?.[key];
-        if (typeof v === 'string' && v.trim()) ids[key] = v.trim();
-      }
-    } catch {
-      // 格式錯誤視為未設定
+    let reason: string | undefined;
+    let raw = (process.env.DRIVE_IDS || '').trim();
+    // 容錯：貼上時可能帶外層引號（DRIVE_IDS='{...}' 或 "{...}"）
+    if (raw.length >= 2 && ((raw[0] === "'" && raw.endsWith("'")) || (raw[0] === '"' && raw.endsWith('"')))) {
+      raw = raw.slice(1, -1).trim();
     }
-    res.json({ ids });
+    if (!raw) {
+      reason = 'DRIVE_IDS 未設定（伺服器環境沒有這個變數，設定後需重啟或重新部署）';
+    } else {
+      try {
+        const parsed = JSON.parse(raw);
+        for (const key of APP_DRIVE_ID_KEYS) {
+          const v = parsed?.[key];
+          if (typeof v === 'string' && v.trim()) ids[key] = v.trim();
+        }
+        const missing = APP_DRIVE_ID_KEYS.filter((k) => !ids[k]);
+        if (missing.length) reason = `DRIVE_IDS 缺少鍵：${missing.join('、')}`;
+      } catch {
+        reason = 'DRIVE_IDS 不是有效的 JSON（請貼單行 JSON 物件）';
+      }
+    }
+    // 只回報原因與鍵名，不回報任何值
+    res.json({ ids, reason });
   });
 
   // Endpoint 0: Public Free Market Quote (Yahoo Finance / Google Finance, No OAuth/Auth required!)

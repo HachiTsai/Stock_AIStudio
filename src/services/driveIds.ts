@@ -9,12 +9,16 @@ export type DriveIdKey =
   | 'MARKET_ETF_SHEET_ID';
 
 let cache: Promise<Record<string, string>> | null = null;
+let lastReason = '';
 
 function loadDriveIds(): Promise<Record<string, string>> {
   if (!cache) {
     cache = fetch('/api/drive-ids')
       .then((res) => (res.ok ? res.json() : { ids: {} }))
-      .then((data) => (data && typeof data.ids === 'object' && data.ids ? (data.ids as Record<string, string>) : {}))
+      .then((data) => {
+        lastReason = typeof data?.reason === 'string' ? data.reason : '';
+        return data && typeof data.ids === 'object' && data.ids ? (data.ids as Record<string, string>) : {};
+      })
       .catch(() => ({}));
   }
   return cache;
@@ -23,7 +27,7 @@ function loadDriveIds(): Promise<Record<string, string>> {
 /** 取得 ID；沒設定時丟錯（訊息只含鍵名）。 */
 export async function driveId(key: DriveIdKey): Promise<string> {
   const id = (await loadDriveIds())[key];
-  if (!id) throw new Error(`資料來源未設定（伺服器缺少 DRIVE_IDS 的 ${key}）`);
+  if (!id) throw new Error(`資料來源未設定（${lastReason || `伺服器缺少 DRIVE_IDS 的 ${key}`}）`);
   return id;
 }
 
