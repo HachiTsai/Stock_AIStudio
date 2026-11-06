@@ -27,14 +27,52 @@ const LIVE_REFRESH_MS = 60_000;
 const fmt = (v: number | null, d: number) => (v == null ? '-' : v.toFixed(d));
 
 const KINDS = ['全部', '個股', 'ETF'] as const;
-/** 來源欄含「ETF 卡片」為 ETF，其餘（個股卡片、成分股）為個股。 */
-const kindOf = (source: string) => (source.includes('ETF 卡片') ? 'ETF' : '個股');
+/** 來源欄含「ETF」（ETF 卡片、全市場 ETF）為 ETF，其餘（個股卡片、成分股）為個股。 */
+const kindOf = (source: string) => (source.includes('ETF') ? 'ETF' : '個股');
+/** 口袋名單 = 卡片與 00882 成分股；來源為「全市場 ETF」的是全市場補充。 */
+const isPocket = (source: string) => !source.includes('全市場');
+/** 與排程的關鍵組合一致（swing_levels.KEY_COMBOS）。 */
+const KEY_COMBOS = ['三週期共振偏多', '三週期共振偏空', '長多短回檔', '長空短反彈'];
+
+const FILTER_KEY = 'swing-filters-v1';
+interface SavedFilters {
+  states: string[];
+  combos: string[];
+  keyOnly: boolean;
+  pocketOnly: boolean;
+}
+const loadFilters = (): SavedFilters => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FILTER_KEY) ?? '{}');
+    return {
+      states: Array.isArray(raw.states) ? raw.states : [],
+      combos: Array.isArray(raw.combos) ? raw.combos : [],
+      keyOnly: !!raw.keyOnly,
+      pocketOnly: !!raw.pocketOnly,
+    };
+  } catch {
+    return { states: [], combos: [], keyOnly: false, pocketOnly: false };
+  }
+};
 
 export const SwingTab: React.FC = () => {
   const [feed, setFeed] = useState<SwingFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<string>('全部');
   const [kind, setKind] = useState<string>('全部');
+  const [saved] = useState(loadFilters);
+  const [states, setStates] = useState<string[]>(saved.states);
+  const [combos, setCombos] = useState<string[]>(saved.combos);
+  const [keyOnly, setKeyOnly] = useState(saved.keyOnly);
+  const [pocketOnly, setPocketOnly] = useState(saved.pocketOnly);
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ states, combos, keyOnly, pocketOnly }));
+    } catch {
+      // 無法存瀏覽器設定時，篩選只在這次有效
+    }
+  }, [states, combos, keyOnly, pocketOnly]);
+  const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const [live, setLive] = useState<Record<string, LiveQuote>>({});
   const [history, setHistory] = useState<Record<string, PriceSeries>>({});
   const [rangeDays, setRangeDays] = useState(91);
@@ -113,22 +151,43 @@ export const SwingTab: React.FC = () => {
     [live],
   );
 
-  const rows = useMemo(
+  // 先套用市場、類型、口袋名單、關鍵組合；狀態與組合的統計以此為底，點選後再細篩
+  const baseRows = useMemo(
     () =>
       (feed?.rows ?? [])
         .filter((r) => market === '全部' || r.market === market)
         .filter((r) => kindOf(r.source) === kind || kind === '全部')
+        .filter((r) => !pocketOnly || isPocket(r.source))
+        .filter((r) => !keyOnly || KEY_COMBOS.includes(r.combo))
         .sort((a, b) => swingRank(a.label) - swingRank(b.label)),
-    [feed, market, kind],
+    [feed, market, kind, pocketOnly, keyOnly],
+  );
+
+  const rows = useMemo(
+    () =>
+      baseRows
+        .filter((r) => states.length === 0 || states.includes(r.label))
+        .filter((r) => combos.length === 0 || combos.includes(r.combo)),
+    [baseRows, states, combos],
   );
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    rows.forEach((r) => {
+    baseRows.filter((r) => combos.length === 0 || combos.includes(r.combo)).forEach((r) => {
       c[r.label] = (c[r.label] ?? 0) + 1;
     });
     return c;
-  }, [rows]);
+  }, [baseRows, combos]);
+
+  const comboCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    baseRows.filter((r) => states.length === 0 || states.includes(r.label)).forEach((r) => {
+      if (r.combo) c[r.combo] = (c[r.combo] ?? 0) + 1;
+    });
+    return c;
+  }, [baseRows, states]);
+
+  const hasFilter = states.length > 0 || combos.length > 0 || keyOnly || pocketOnly;
 
   return (
     <div className="space-y-5">
@@ -217,12 +276,80 @@ export const SwingTab: React.FC = () => {
 
       {feed && (
         <>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="狀態篩選">
+            <span className="text-xs text-slate-400">狀態</span>
             {Object.entries(counts).map(([label, n]) => (
-              <span key={label} className={`px-3 py-1 rounded-lg border text-sm ${pillClass(label)}`}>
+              <button
+                key={label}
+                type="button"
+                onClick={() => setStates(toggle(states, label))}
+                aria-pressed={states.includes(label)}
+                className={`px-3 py-1 rounded-lg border text-sm cursor-pointer transition ${pillClass(label)} ${
+                  states.includes(label) ? 'ring-2 ring-white/70' : states.length > 0 ? 'opacity-50' : ''
+                }`}
+              >
                 {label} <b className="ml-1 tabular-nums">{n}</b>
-              </span>
+              </button>
             ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="三週期組合篩選">
+            <span className="text-xs text-slate-400">三週期組合</span>
+            {Object.entries(comboCounts)
+              .sort((a, b) => Number(KEY_COMBOS.includes(b[0])) - Number(KEY_COMBOS.includes(a[0])) || b[1] - a[1])
+              .map(([c, n]) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCombos(toggle(combos, c))}
+                  aria-pressed={combos.includes(c)}
+                  className={`px-3 py-1 rounded-lg border text-sm cursor-pointer transition ${
+                    combos.includes(c)
+                      ? 'bg-violet-600 border-violet-400 text-white'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                  } ${KEY_COMBOS.includes(c) ? 'font-semibold' : ''}`}
+                >
+                  {c} <b className="ml-1 tabular-nums">{n}</b>
+                </button>
+              ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="其他篩選">
+            <button
+              type="button"
+              onClick={() => setKeyOnly(!keyOnly)}
+              aria-pressed={keyOnly}
+              className={`px-3 py-1 rounded-lg border text-sm cursor-pointer transition ${
+                keyOnly ? 'bg-violet-600 border-violet-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              只看關鍵組合（共振偏多、共振偏空、長多短回檔、長空短反彈）
+            </button>
+            <button
+              type="button"
+              onClick={() => setPocketOnly(!pocketOnly)}
+              aria-pressed={pocketOnly}
+              className={`px-3 py-1 rounded-lg border text-sm cursor-pointer transition ${
+                pocketOnly ? 'bg-amber-600 border-amber-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              只看口袋名單
+            </button>
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStates([]);
+                  setCombos([]);
+                  setKeyOnly(false);
+                  setPocketOnly(false);
+                }}
+                className="px-3 py-1 rounded-lg border border-slate-600 text-sm text-slate-300 cursor-pointer hover:bg-slate-800"
+              >
+                清除篩選
+              </button>
+            )}
+            <span className="text-xs text-slate-500 tabular-nums">符合 {rows.length} 檔</span>
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
