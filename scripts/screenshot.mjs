@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 一行指令截圖：建置 → 啟動 server（dist）→ Playwright 拍各分頁與主要彈窗（手機／手機橫向／平板／電腦）。
-// 用法：npm run screenshot -- [--out 資料夾] [--tab overview,swing] [--no-build] [--no-modals] [--viewport phone,desktop] [--vite-preview]
+// 用法：npm run screenshot -- [--out 資料夾] [--tab radar,swing] [--no-build] [--no-modals] [--viewport phone,desktop] [--vite-preview]
 // 此檔位於 scripts/，不在 index.html 的依賴圖內，不會被 vite 打包進 APP。
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -16,14 +16,13 @@ const VIEWPORTS = {
 
 // 分頁 id 對應 Header.tsx；modal 為各分頁可開啟的主要彈窗（opener 以可見文字／role 定位）。
 const TABS = {
-  overview: { label: '總覽概況', modals: { quote: (p) => p.getByRole('button', { name: '最新報價' }).first().click() } },
   intelligence: {
     label: '客觀趨勢情報中心',
     modals: { signal: (p) => p.locator('button.w-full.text-left').first().click() },
   },
   radar: { label: '量化動態評分矩陣', modals: {} },
   swing: { label: '波段觀察', modals: { 'stock-chart': (p) => p.locator('td button[title^="看即時價"]').first().click() } },
-  dividends: { label: '股利入帳與達標試算', modals: {} },
+  planner: { label: '年股利試算', modals: {} },
 };
 
 const args = process.argv.slice(2);
