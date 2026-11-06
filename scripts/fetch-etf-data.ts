@@ -8,6 +8,7 @@
  * - 受益人數：集保開放資料 1-5（持股分級 17 = 合計）。只提供最新一週，
  *   因此每次執行會把新的資料日期「追加」到 etfHoldersHistory.json 以累積趨勢。
  */
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -23,21 +24,48 @@ const MAX_ETFS = 100;
 // 台股代號（含債券 B、主動式 A 後綴）；排除日本、美國本地代號
 const TW_CODE = /^\d{4,6}[A-Z]?$/;
 
+const parseJsonLoose = (raw: string) => {
+  // Secret 可能被貼成 `NAME={...}` 或帶引號，只取第一個 {...}
+  const obj = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+  return JSON.parse(obj || '{}');
+};
+
+/** 用服務帳號金鑰（GCP_SA_KEY）換 Sheets 唯讀存取權杖；只用 node:crypto，不加相依套件。 */
+async function serviceAccountToken(): Promise<string> {
+  const key = parseJsonLoose(process.env.GCP_SA_KEY ?? '');
+  if (!key.client_email || !key.private_key) throw new Error('GCP_SA_KEY 未設定或格式錯誤');
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({
+    iss: key.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  })}`;
+  const sig = crypto.createSign('RSA-SHA256').update(unsigned).sign(key.private_key, 'base64url');
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${sig}` }),
+  });
+  if (!r.ok) throw new Error(`取得權杖失敗 HTTP ${r.status}`);
+  return (await r.json()).access_token;
+}
+
 /** 基本清單優先，再從全市場 ETF Sheet 的 ETF_Summary 依序補到 MAX_ETFS 檔；讀不到 Sheet 時只用基本清單。 */
 async function resolveIds(): Promise<string[]> {
   try {
-    // Secret 可能被貼成 `DRIVE_IDS={...}` 或帶引號，與 server.ts 一樣只取第一個 {...}
-    const raw = process.env.DRIVE_IDS ?? '';
-    const obj = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
-    const sheetId = JSON.parse(obj || '{}').MARKET_ETF_SHEET_ID;
+    const sheetId = parseJsonLoose(process.env.DRIVE_IDS ?? '').MARKET_ETF_SHEET_ID;
     if (!sheetId) throw new Error('DRIVE_IDS 未設定 MARKET_ETF_SHEET_ID');
-    const r = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=ETF_Summary`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const extra = (await r.text())
-      .split(/\r?\n/)
-      .slice(1)
-      .map((l) => l.split(',')[0]?.replace(/"/g, '').trim() ?? '')
-      .filter((id) => TW_CODE.test(id) && !BASE_IDS.includes(id));
+    const token = await serviceAccountToken();
+    const r = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/ETF_Summary!A2:A?majorDimension=COLUMNS`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!r.ok) throw new Error(`Sheets API HTTP ${r.status}`);
+    const col: string[] = (await r.json()).values?.[0] ?? [];
+    const extra = col.map((id) => String(id).trim()).filter((id) => TW_CODE.test(id) && !BASE_IDS.includes(id));
     return [...BASE_IDS, ...new Set(extra)].slice(0, MAX_ETFS);
   } catch (e) {
     console.log(`讀不到全市場 ETF 清單，只抓基本清單：${e instanceof Error ? e.message : e}`);
