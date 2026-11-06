@@ -22,7 +22,7 @@
 ## 2. 資料庫來源與結構
 
 - **真實資料源**：Google Drive 試算表 `Investment_Tracker_Core`
-- **Drive ID**：`1QBEgUi-kTOuLgj2yGHmP-0g_ug-Sl_M21SN0g93b6xI`
+- **ID**：存放於環境變數 `DRIVE_IDS` 的 `CORE_SHEET_ID`（不放進 git；APP 本身不讀 Core）
 - **權限**：唯讀（Read-Only）
 
 ### 主要工作表分頁

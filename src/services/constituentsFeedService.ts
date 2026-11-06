@@ -3,10 +3,8 @@ import { inferConstituentMarket } from './constituentMarkets';
 
 // Drive: Project_財商工程/Portfolio_00882/成分股股利資料庫/00882_成分股股利資料庫（資料夾為知道連結者可檢視，免登入）
 // 由 Investment_Tracker 端每月底排程（富途牛牛＋中信投信持股）重建；APP 只讀不寫。
-export const CONSTITUENTS_SHEET_ID = '1Jq599WzoQUDsooZDhJhyK8uaEMgDiLLCoZthWk2WXtw';
-
-const csvUrl = (sheet: string) =>
-  `https://docs.google.com/spreadsheets/d/${CONSTITUENTS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+// 試算表 ID 由後端 /api/drive-ids 提供（DRIVE_IDS 的 DIV_00882_SHEET_ID），不放進 git。
+import { sheetCsvUrl } from './driveIds';
 
 export interface ConstituentRow {
   code: string;
@@ -25,7 +23,7 @@ export interface ConstituentsFeed {
 }
 
 async function fetchCsv(sheet: string): Promise<string[][]> {
-  const res = await fetch(csvUrl(sheet));
+  const res = await fetch(await sheetCsvUrl('DIV_00882_SHEET_ID', `sheet=${encodeURIComponent(sheet)}`));
   if (!res.ok) throw new Error(`讀取成分股股利資料庫失敗 (${res.status})`);
   return parseCsv(await res.text());
 }
@@ -57,10 +55,9 @@ export async function fetchConstituentsFeed(): Promise<ConstituentsFeed> {
 
 // Drive: Project_財商工程/All_Market/全市場_ETF成分股資料庫（資料夾為知道連結者可檢視，免登入）
 // 由 Investment_Tracker 端 tw-etf-fetcher 技能維護；APP 只讀不寫。
-export const ALL_MARKET_ETF_SHEET_ID = '1GIhbRyL-h96ACVjlSSW9YUFMiAItg_SP9Wi0o3WwG70';
-
+// 試算表 ID 由後端 /api/drive-ids 提供（DRIVE_IDS 的 MARKET_ETF_SHEET_ID），不放進 git。
 export const allMarketCsvUrl = (sheet: string) =>
-  `https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+  sheetCsvUrl('MARKET_ETF_SHEET_ID', `sheet=${encodeURIComponent(sheet)}`);
 
 const FOUR_DIGIT_ETFS = new Set(['0050', '0051', '0052', '0053', '0054', '0055', '0056']);
 
@@ -397,7 +394,7 @@ import {
 
 export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]> {
   try {
-    const res = await fetch(allMarketCsvUrl('ETF_Constituents'));
+    const res = await fetch(await allMarketCsvUrl('ETF_Constituents'));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rowsCsv = parseCsv(await res.text());
     const header = (rowsCsv[0] ?? []).map((h) => h.trim());
@@ -442,7 +439,7 @@ export async function fetchAllMarketConstituents(): Promise<EtfConstituentRow[]>
 
 export async function fetchAllMarketSummary(): Promise<EtfSummaryRow[]> {
   try {
-    const res = await fetch(allMarketCsvUrl('ETF_Summary'));
+    const res = await fetch(await allMarketCsvUrl('ETF_Summary'));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rowsCsv = parseCsv(await res.text());
     const header = (rowsCsv[0] ?? []).map((h) => h.trim());

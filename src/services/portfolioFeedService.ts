@@ -3,16 +3,14 @@ import { parseCsv } from './signalsFeedService';
 
 // Drive: Project_財商工程/Portfolio_00882/持股快照與交易紀錄/（資料夾已設為知道連結者可檢視，免登入）
 // 兩份 Sheet 由排程依 Investment_Tracker_Core 唯讀重建；APP 只讀不寫。
-export const HOLDINGS_SHEET_ID = '1CWLwi1tsQoWaEYm0IOK9aH7NEkENgd71sbz6Y_lpRVI';
-export const TRANSACTIONS_SHEET_ID = '1yFr6OSW6LKWm5wdoc-QoJFXyUotYEd8_YEl_qR-24ks';
-
-const csvUrl = (id: string) => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=0`;
+// 試算表 ID 由後端 /api/drive-ids 提供（DRIVE_IDS 的 HOLDINGS_SHEET_ID、TX_DETAIL_SHEET_ID），不放進 git。
+import { sheetCsvUrl, type DriveIdKey } from './driveIds';
 
 const MARKETS: Holding['market'][] = ['台股', '美股', '日股', '港股'];
 const TX_TYPES: Transaction['type'][] = ['Buy', 'Sell', 'Reinvest'];
 
-async function fetchTable(id: string, label: string): Promise<Record<string, string>[]> {
-  const res = await fetch(csvUrl(id));
+async function fetchTable(key: DriveIdKey, label: string): Promise<Record<string, string>[]> {
+  const res = await fetch(await sheetCsvUrl(key, 'gid=0'));
   if (!res.ok) throw new Error(`讀取${label}失敗 (${res.status})`);
   const rows = parseCsv(await res.text());
   if (rows.length < 2) return [];
@@ -68,8 +66,8 @@ export async function fetchPortfolioFeed(
   priceByTicker: Record<string, number>
 ): Promise<{ holdings: Holding[]; transactions: Transaction[] }> {
   const [holdingRows, txRows] = await Promise.all([
-    fetchTable(HOLDINGS_SHEET_ID, '持股資料庫'),
-    fetchTable(TRANSACTIONS_SHEET_ID, '交易明細資料庫'),
+    fetchTable('HOLDINGS_SHEET_ID', '持股資料庫'),
+    fetchTable('TX_DETAIL_SHEET_ID', '交易明細資料庫'),
   ]);
   const holdings = holdingRows
     .map((r) => recordToHolding(r, priceByTicker[r.ticker] ?? 0))

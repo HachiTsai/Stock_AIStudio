@@ -1,1 +1,0 @@
-export const DEFAULT_CORE_SPREADSHEET_ID = '1QBEgUi-kTOuLgj2yGHmP-0g_ug-Sl_M21SN0g93b6xI';
