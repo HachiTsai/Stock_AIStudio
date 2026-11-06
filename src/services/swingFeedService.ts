@@ -66,7 +66,9 @@ export async function fetchSwingFeed(): Promise<SwingFeed> {
       stopDistancePct: num(col(r, '停損距離%')),
       reason: col(r, '判定依據'),
       updatedAt: col(r, '更新日'),
-    }));
+    }))
+    // 2026-11-06 Hachi 指示：波段觀察不列港股個股（ETF 卡片保留）
+    .filter((r) => !(r.market === '港股' && !r.source.includes('ETF 卡片')));
   return { rows, updatedAt: rows[0]?.updatedAt ?? '' };
 }
 
