@@ -8,7 +8,7 @@ import { fetchSignalsFeed } from './services/signalsFeedService';
 import { IntelligenceSignal } from './types/portfolio';
 import { EyeOff } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
-import { SHOW_INTELLIGENCE_TAB } from './config/features';
+import { SHOW_INTELLIGENCE_TAB, SHOW_PLANNER_TAB } from './config/features';
 
 // 情報中心情境試算的預設每股年配息（模型 v6 的假設值，非持股資料）
 const DEFAULT_ANNUAL_DIVIDEND_PER_SHARE = 0.86;
@@ -75,7 +75,7 @@ const AppContent: React.FC = () => {
 
   const handleApplyScenarioToModel = (dividendPerShare: number, label: string) => {
     setExternalScenario({ dividendPerShare, label });
-    setActiveTab('planner');
+    if (SHOW_PLANNER_TAB) setActiveTab('planner');
   };
 
   return (
@@ -132,7 +132,7 @@ const AppContent: React.FC = () => {
 
         {activeTab === 'swing' && <SwingTab />}
 
-        {activeTab === 'planner' && (
+        {SHOW_PLANNER_TAB && activeTab === 'planner' && (
           <PlannerTab
             externalScenario={externalScenario}
             onClearExternalScenario={() => setExternalScenario(null)}

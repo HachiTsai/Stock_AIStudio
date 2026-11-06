@@ -22,7 +22,7 @@ const TABS = {
   },
   radar: { label: '量化動態評分矩陣', modals: {} },
   swing: { label: '波段觀察', modals: { 'stock-chart': (p) => p.locator('td button[title^="看即時價"]').first().click() } },
-  planner: { label: '年股利試算', modals: {} },
+  // planner: { label: '年股利試算', modals: {} }, // 已下架（SHOW_PLANNER_TAB）
 };
 
 const args = process.argv.slice(2);
