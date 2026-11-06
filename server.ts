@@ -47,6 +47,10 @@ async function startServer() {
     if (raw.length >= 2 && ((raw[0] === "'" && raw.endsWith("'")) || (raw[0] === '"' && raw.endsWith('"')))) {
       raw = raw.slice(1, -1).trim();
     }
+    // 容錯：貼上時可能帶 `DRIVE_IDS=` 前綴或前後多餘文字，只取第一個 { 到最後一個 } 之間
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start >= 0 && end > start) raw = raw.slice(start, end + 1);
     if (!raw) {
       reason = 'DRIVE_IDS 未設定（伺服器環境沒有這個變數，設定後需重啟或重新部署）';
     } else {
