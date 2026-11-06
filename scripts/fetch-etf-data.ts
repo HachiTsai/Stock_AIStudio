@@ -19,7 +19,9 @@ const HISTORY_FILE = path.join(DATA_DIR, 'etfHistorySnapshot.json');
 const HOLDERS_FILE = path.join(DATA_DIR, 'etfHoldersHistory.json');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const BASE_IDS = [...new Set(Object.values(ETF_NAME_TO_ID))].sort();
+// 報價來源查不到資料的代號（疑似已下市或槓桿／期貨型），不納入抓取清單。
+const EXCLUDED_IDS = new Set(['0054', '0058', '0059', '0060', '00649', '00658L', '00659R']);
+const BASE_IDS = [...new Set(Object.values(ETF_NAME_TO_ID))].filter((id) => !EXCLUDED_IDS.has(id)).sort();
 const MAX_ETFS = 100;
 // 台股代號（含債券 B、主動式 A 後綴）；排除日本、美國本地代號
 const TW_CODE = /^\d{4,6}[A-Z]?$/;
@@ -68,7 +70,7 @@ async function resolveIds(): Promise<string[]> {
       throw new Error(`Sheets API HTTP ${r.status} ${detail?.status ?? ''} ${detail?.message ?? ''}`.trim());
     }
     const col: string[] = (await r.json()).values?.[0] ?? [];
-    const extra = col.map((id) => String(id).trim()).filter((id) => TW_CODE.test(id) && !BASE_IDS.includes(id));
+    const extra = col.map((id) => String(id).trim()).filter((id) => TW_CODE.test(id) && !EXCLUDED_IDS.has(id) && !BASE_IDS.includes(id));
     return [...BASE_IDS, ...new Set(extra)].slice(0, MAX_ETFS);
   } catch (e) {
     console.log(`讀不到全市場 ETF 清單，只抓基本清單：${e instanceof Error ? e.message : e}`);
