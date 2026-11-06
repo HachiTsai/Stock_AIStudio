@@ -34,8 +34,6 @@ async function startServer() {
   const APP_DRIVE_ID_KEYS = [
     'INTEL_SHEET_ID',
     'DIV_00882_SHEET_ID',
-    'HOLDINGS_SHEET_ID',
-    'TX_DETAIL_SHEET_ID',
     'SWING_SHEET_ID',
     'MARKET_ETF_SHEET_ID',
   ];

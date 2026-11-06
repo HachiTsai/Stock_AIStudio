@@ -1,6 +1,6 @@
 import React from 'react';
 import { ZoomControl } from './ZoomControl';
-import { Target, TrendingUp, Layers, History, Sparkles, Scale, Eye, EyeOff, Radar, Activity } from 'lucide-react';
+import { Sparkles, Scale, Eye, EyeOff, Radar, Activity } from 'lucide-react';
 import { SHOW_INTELLIGENCE_TAB } from '../config/features';
 
 interface HeaderProps {
@@ -19,11 +19,10 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePrivacyMask = () => {},
 }) => {
   const tabs = [
-    { id: 'overview', label: '總覽概況', icon: TrendingUp },
     ...(SHOW_INTELLIGENCE_TAB ? [{ id: 'intelligence', label: '客觀趨勢情報中心', icon: Scale, badge: `${signalsCount}` }] : []),
     { id: 'radar', label: '量化動態評分矩陣', icon: Radar },
     { id: 'swing', label: '波段觀察', icon: Activity },
-    { id: 'dividends', label: '股利入帳與達標試算', icon: Sparkles },
+    { id: 'planner', label: '年股利試算', icon: Sparkles },
   ];
 
   return (
