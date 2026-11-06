@@ -24,6 +24,7 @@ jobs:
       - name: 抓取資料
         env:
           DRIVE_IDS: ${{ secrets.DRIVE_IDS }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: npm run fetch:etf
       - name: 有變動則開 PR
         env:
