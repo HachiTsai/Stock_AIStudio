@@ -63,7 +63,10 @@ async function resolveIds(): Promise<string[]> {
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/ETF_Summary!A2:A?majorDimension=COLUMNS`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    if (!r.ok) throw new Error(`Sheets API HTTP ${r.status}`);
+    if (!r.ok) {
+      const detail = (await r.json().catch(() => null))?.error;
+      throw new Error(`Sheets API HTTP ${r.status} ${detail?.status ?? ''} ${detail?.message ?? ''}`.trim());
+    }
     const col: string[] = (await r.json()).values?.[0] ?? [];
     const extra = col.map((id) => String(id).trim()).filter((id) => TW_CODE.test(id) && !BASE_IDS.includes(id));
     return [...BASE_IDS, ...new Set(extra)].slice(0, MAX_ETFS);
