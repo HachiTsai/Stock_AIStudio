@@ -2,9 +2,8 @@ import { parseCsv } from './signalsFeedService';
 
 // Drive: Project_財商工程 內的「波段觀察」試算表（知道連結者可檢視，免登入；不含持股數量）
 // 由 Investment_Tracker 端 price-dividend-fetcher 的 swing.py --scan 產出；APP 只讀不寫。
-export const SWING_SHEET_ID = '1pyGzkgaspYMYdXOPYerkLsxOMwNwa2yOKuNDrOrrhtQ';
-
-const csvUrl = `https://docs.google.com/spreadsheets/d/${SWING_SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`;
+// 試算表 ID 由後端 /api/drive-ids 提供（DRIVE_IDS 的 SWING_SHEET_ID），不放進 git。
+import { sheetCsvUrl } from './driveIds';
 
 export interface SwingRow {
   ticker: string;
@@ -39,7 +38,7 @@ const num = (s: string): number | null => {
 };
 
 export async function fetchSwingFeed(): Promise<SwingFeed> {
-  const res = await fetch(csvUrl);
+  const res = await fetch(await sheetCsvUrl('SWING_SHEET_ID', 'gid=0'));
   if (!res.ok) throw new Error(`讀取波段觀察失敗 (${res.status})`);
   const csv = parseCsv(await res.text());
   const header = (csv[0] ?? []).map((h) => h.trim());

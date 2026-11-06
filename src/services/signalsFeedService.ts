@@ -1,10 +1,8 @@
 import { IntelligenceSignal, SignalDimension, SignalDirection, SignalSourceType } from '../types/portfolio';
 
 // Drive: Project_財商工程/Portfolio_00882/情報與趨勢/情報資料庫（資料夾已設為知道連結者可檢視，免登入）
-export const SIGNALS_SHEET_ID = '1BF2xvF0cmyODdN0nXR8QHbOTC3ikqswvSwBboY1cGQo';
-export const SIGNALS_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SIGNALS_SHEET_ID}/edit`;
-
-const FEED_URL = `https://docs.google.com/spreadsheets/d/${SIGNALS_SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`;
+// 試算表 ID 由後端 /api/drive-ids 提供（DRIVE_IDS 的 INTEL_SHEET_ID），不放進 git。
+import { sheetCsvUrl } from './driveIds';
 
 const DIMENSIONS: SignalDimension[] = ['dividend_sustainability', 'valuation_margin', 'friction_fx'];
 const DIRECTIONS: SignalDirection[] = ['bullish', 'neutral', 'bearish'];
@@ -90,7 +88,7 @@ export function rowToSignal(header: string[], row: string[]): IntelligenceSignal
 
 /** 免登入讀取 Drive 情報資料庫（僅 GET） */
 export async function fetchSignalsFeed(): Promise<IntelligenceSignal[]> {
-  const res = await fetch(FEED_URL);
+  const res = await fetch(await sheetCsvUrl('INTEL_SHEET_ID', 'gid=0'));
   if (!res.ok) throw new Error(`讀取情報資料庫失敗 (${res.status})`);
   const rows = parseCsv(await res.text());
   if (rows.length < 2) return [];
@@ -111,11 +109,9 @@ export interface ScorePoint {
   signalCount?: number;
 }
 
-const HISTORY_URL = `https://docs.google.com/spreadsheets/d/${SIGNALS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('評分歷史')}`;
-
 /** 免登入讀取「評分歷史」分頁（每個交易日一列，由風向日報寫入） */
 export async function fetchScoreHistory(): Promise<ScorePoint[]> {
-  const res = await fetch(HISTORY_URL);
+  const res = await fetch(await sheetCsvUrl('INTEL_SHEET_ID', `sheet=${encodeURIComponent('評分歷史')}`));
   if (!res.ok) throw new Error(`讀取評分歷史失敗 (${res.status})`);
   const rows = parseCsv(await res.text());
   if (rows.length < 2) return [];

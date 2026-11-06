@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { sheetEditUrl } from '../services/driveIds';
 import {
   Radar,
   ShieldCheck,
@@ -21,7 +22,6 @@ import {
   fetchLiveEtfQuotes,
   type LiveEtfQuote,
   fetchAllMarketConstituents,
-  ALL_MARKET_ETF_SHEET_ID,
   normalizeEtfId,
   classifyEtfMarket,
   type MarketCategory,
@@ -41,6 +41,10 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const [error, setError] = useState<string | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string>(initialTicker);
   const [marketFilter, setMarketFilter] = useState<string>('all');
+  const [marketSheetUrl, setMarketSheetUrl] = useState<string | null>(null);
+  useEffect(() => {
+    sheetEditUrl('MARKET_ETF_SHEET_ID').then(setMarketSheetUrl);
+  }, []);
   const [liveQuotes, setLiveQuotes] = useState<Record<string, LiveEtfQuote>>({});
 
   useEffect(() => {
@@ -512,15 +516,17 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                       標的市價：<strong className="text-cyan-300 ml-1 font-bold">${currentEtf.currentPrice.toFixed(2)}</strong>
                     </span>
                   ) : null}
-                  <a
-                    href={`https://docs.google.com/spreadsheets/d/${ALL_MARKET_ETF_SHEET_ID}/edit`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
-                  >
-                    <span>開啟雲端 Google Sheets</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  {marketSheetUrl ? (
+                    <a
+                      href={marketSheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
+                    >
+                      <span>開啟雲端 Google Sheets</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  ) : null}
                 </div>
               </div>
 

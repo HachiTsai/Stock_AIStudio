@@ -29,6 +29,30 @@ async function startServer() {
     });
   };
 
+  // Drive／Sheet ID 不放進 git：由環境變數 DRIVE_IDS（JSON）提供，只回傳 APP 唯讀會用到的鍵。
+  // 沒設或格式錯誤回空物件，前端顯示「資料來源未設定」；不回傳 CORE_SHEET_ID，也不回傳任何其他環境變數。
+  const APP_DRIVE_ID_KEYS = [
+    'INTEL_SHEET_ID',
+    'DIV_00882_SHEET_ID',
+    'HOLDINGS_SHEET_ID',
+    'TX_DETAIL_SHEET_ID',
+    'SWING_SHEET_ID',
+    'MARKET_ETF_SHEET_ID',
+  ];
+  app.get('/api/drive-ids', (_req, res) => {
+    const ids: Record<string, string> = {};
+    try {
+      const parsed = JSON.parse(process.env.DRIVE_IDS || '{}');
+      for (const key of APP_DRIVE_ID_KEYS) {
+        const v = parsed?.[key];
+        if (typeof v === 'string' && v.trim()) ids[key] = v.trim();
+      }
+    } catch {
+      // 格式錯誤視為未設定
+    }
+    res.json({ ids });
+  });
+
   // Endpoint 0: Public Free Market Quote (Yahoo Finance / Google Finance, No OAuth/Auth required!)
   app.get('/api/market-quote', async (req, res) => {
     try {
