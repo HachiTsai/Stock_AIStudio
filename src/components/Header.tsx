@@ -1,7 +1,7 @@
 import React from 'react';
 import { ZoomControl } from './ZoomControl';
 import { Sparkles, Scale, Eye, EyeOff, Radar, Activity } from 'lucide-react';
-import { SHOW_INTELLIGENCE_TAB } from '../config/features';
+import { SHOW_INTELLIGENCE_TAB, SHOW_PLANNER_TAB } from '../config/features';
 
 interface HeaderProps {
   activeTab: string;
@@ -22,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
     ...(SHOW_INTELLIGENCE_TAB ? [{ id: 'intelligence', label: '客觀趨勢情報中心', icon: Scale, badge: `${signalsCount}` }] : []),
     { id: 'radar', label: '量化動態評分矩陣', icon: Radar },
     { id: 'swing', label: '波段觀察', icon: Activity },
-    { id: 'planner', label: '年股利試算', icon: Sparkles },
+    ...(SHOW_PLANNER_TAB ? [{ id: 'planner', label: '年股利試算', icon: Sparkles }] : []),
   ];
 
   return (

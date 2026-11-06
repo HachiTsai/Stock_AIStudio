@@ -12,7 +12,7 @@
   - **核心技術**：React 19、TypeScript、Vite、Tailwind CSS v4
   - **圖表與動效**：Three.js（3D 視覺化圖表）、Lucide React 圖示庫
   - **模組職責**：
-    - `src/components/PlannerTab.tsx`：年股利試算分頁（手動輸入代號與張數，不讀持股資料）
+    - `src/components/PlannerTab.tsx`：年股利試算分頁（2026-11-06 下架，SHOW_PLANNER_TAB=false）（手動輸入代號與張數，不讀持股資料）
     - `src/components/DividendPlanner.tsx`：年股利 50 萬目標缺口試算與股息再投入模擬
     - `src/components/IntelligenceTab.tsx`：市場情報與 AI 分析觀點彙整
     - `src/components/Dynamic3DChart.tsx`：Three.js 3D 資產配置動態圖表
