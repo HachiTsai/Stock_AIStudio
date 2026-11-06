@@ -1,5 +1,5 @@
 /**
- * 抓取 35 檔 ETF 的 1 年日線（含還原收盤價、成交量）、配息，以及集保每週受益人數，
+ * 抓取台股 ETF（上限 MAX_ETFS 檔）的 1 年日線（含還原收盤價、成交量）、配息，以及集保每週受益人數，
  * 寫入 src/data/etfHistorySnapshot.json 與 src/data/etfHoldersHistory.json。
  *
  * 用法：npx tsx scripts/fetch-etf-data.ts
@@ -18,7 +18,30 @@ const HISTORY_FILE = path.join(DATA_DIR, 'etfHistorySnapshot.json');
 const HOLDERS_FILE = path.join(DATA_DIR, 'etfHoldersHistory.json');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const ids = [...new Set(Object.values(ETF_NAME_TO_ID))].sort();
+const BASE_IDS = [...new Set(Object.values(ETF_NAME_TO_ID))].sort();
+const MAX_ETFS = 100;
+// 台股代號（含債券 B、主動式 A 後綴）；排除日本、美國本地代號
+const TW_CODE = /^\d{4,6}[A-Z]?$/;
+
+/** 基本清單優先，再從全市場 ETF Sheet 的 ETF_Summary 依序補到 MAX_ETFS 檔；讀不到 Sheet 時只用基本清單。 */
+async function resolveIds(): Promise<string[]> {
+  try {
+    const sheetId = JSON.parse(process.env.DRIVE_IDS ?? '{}').MARKET_ETF_SHEET_ID;
+    if (!sheetId) throw new Error('DRIVE_IDS 未設定 MARKET_ETF_SHEET_ID');
+    const r = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=ETF_Summary`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const extra = (await r.text())
+      .split(/\r?\n/)
+      .slice(1)
+      .map((l) => l.split(',')[0]?.replace(/"/g, '').trim() ?? '')
+      .filter((id) => TW_CODE.test(id) && !BASE_IDS.includes(id));
+    return [...BASE_IDS, ...new Set(extra)].slice(0, MAX_ETFS);
+  } catch (e) {
+    console.log(`讀不到全市場 ETF 清單，只抓基本清單：${e instanceof Error ? e.message : e}`);
+    return BASE_IDS;
+  }
+}
+let ids: string[] = BASE_IDS;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const round = (n: number, d = 4) => Number(n.toFixed(d));
 
@@ -93,6 +116,7 @@ async function fetchHolders(): Promise<{ date: string; holders: Record<string, n
 }
 
 async function main() {
+  ids = await resolveIds();
   const prevHistory: Record<string, EtfHistory> = fs.existsSync(HISTORY_FILE)
     ? JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')).etfs ?? {}
     : {};
@@ -125,7 +149,8 @@ async function main() {
 
   console.log(`價格：${Object.keys(etfs).length}/${ids.length} 檔；受益人數快照：${prevHolders.length} 週，最新 ${latest?.date ?? '取得失敗'}`);
   if (failed.length) console.log('失敗/沿用舊資料：', failed.join(', '));
-  if (Object.keys(etfs).length < ids.length) process.exitCode = 1;
+  // 只有基本清單缺資料才算失敗；補進來的標的抓不到不擋流程
+  if (BASE_IDS.some((id) => !etfs[id])) process.exitCode = 1;
 }
 
 main();

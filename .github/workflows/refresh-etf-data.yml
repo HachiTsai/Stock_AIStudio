@@ -22,6 +22,8 @@ jobs:
           node-version: "22"
       - run: npm install --no-audit --no-fund
       - name: 抓取資料
+        env:
+          DRIVE_IDS: ${{ secrets.DRIVE_IDS }}
         run: npm run fetch:etf
       - name: 有變動則開 PR
         env:
