@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { sheetEditUrl } from '../services/driveIds';
 import {
   Radar,
   ShieldCheck,
@@ -11,7 +10,6 @@ import {
   Coins,
   Compass,
   CheckCircle2,
-  ExternalLink,
   Search,
   Filter,
 } from 'lucide-react';
@@ -41,10 +39,6 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
   const [error, setError] = useState<string | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string>(initialTicker);
   const [marketFilter, setMarketFilter] = useState<string>('all');
-  const [marketSheetUrl, setMarketSheetUrl] = useState<string | null>(null);
-  useEffect(() => {
-    sheetEditUrl('MARKET_ETF_SHEET_ID').then(setMarketSheetUrl);
-  }, []);
   const [liveQuotes, setLiveQuotes] = useState<Record<string, LiveEtfQuote>>({});
 
   useEffect(() => {
@@ -515,17 +509,6 @@ export const RadarTab: React.FC<RadarTabProps> = ({ initialTicker = '00882' }) =
                     <span className="hidden sm:inline-flex items-center text-slate-400 font-mono text-xs">
                       標的市價：<strong className="text-cyan-300 ml-1 font-bold">${currentEtf.currentPrice.toFixed(2)}</strong>
                     </span>
-                  ) : null}
-                  {marketSheetUrl ? (
-                    <a
-                      href={marketSheetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 font-semibold"
-                    >
-                      <span>開啟雲端 Google Sheets</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
                   ) : null}
                 </div>
               </div>
