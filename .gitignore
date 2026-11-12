@@ -37,3 +37,6 @@ screenshots/
 .Spotlight-V100
 .Trashes
 
+
+# Firebase config (contains API key)
+firebase-applet-config.json
