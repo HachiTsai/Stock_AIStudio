@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
@@ -7,7 +8,25 @@ import {
   User,
   signOut 
 } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
+
+const configModules = import.meta.glob<{ default?: Record<string, string> }>(
+  '../../firebase-applet-config.json',
+  { eager: true }
+);
+const localConfigModule = Object.values(configModules)[0];
+const localConfig =
+  localConfigModule && 'default' in localConfigModule && localConfigModule.default
+    ? localConfigModule.default
+    : (localConfigModule as Record<string, string> | undefined);
+
+const firebaseConfig = localConfig ?? {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+};
 
 export const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.readonly',
