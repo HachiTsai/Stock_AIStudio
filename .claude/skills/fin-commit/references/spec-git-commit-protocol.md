@@ -7,7 +7,7 @@
 - 所有 commit 使用**同一份詳細模板**（§4）。類別、type、scope 由 committer 依 staged 路徑自動判定，不逐次詢問使用者。
 - **交易紀錄只是其中一種 commit**：它與其他 commit 共用模板，只是多了必填的「交易明細」區塊。
 - 一個 commit 只承載一個投資事件或一個主題。混了多種行為（例如股利入帳後再投入）就拆成多個 commit。
-- 數字以 Investment_Tracker_Core 為準，取不到的數字詢問使用者，不得推測。Core **嚴禁修改**（見 CLAUDE.md）。
+- 數字以 Our_Investment 為準（Core 已退役），取不到的數字詢問使用者，不得推測。Core **嚴禁修改**（見 CLAUDE.md）。
 
 ## 2. 類別（Session-Sync「類別」欄）
 
@@ -84,7 +84,7 @@
 - **損益**: +xxx TWD（+x.xx%）      ← sell 必填
 - **賣出**: ... / **買入**: ...        ← rebal 用這兩欄取代 數量/價格/金額
 - **理由**: 一句話
-- **來源**: Core/Transactions Tx_ID xxx
+- **來源**: Our_Investment/Transactions 交易編號 xxx
 
 ## 股利明細（div 必填，其餘刪除本區塊）
 
@@ -95,7 +95,7 @@
 
 ## 驗證
 
-- 數字核對：數量 × 價格 = 金額；與 Core 對照的分頁與 Tx_ID
+- 數字核對：數量 × 價格 = 金額；與 Our_Investment 對照的分頁與交易編號
 - 純文件變更明寫「無需驗證—純文件變更」，不可省略本區塊
 
 ## 目標影響（選用：會改變年股利推估時填；交易類強烈建議）

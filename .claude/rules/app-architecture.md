@@ -31,8 +31,9 @@
 ## 2. 資料流與邊界規範
 
 1. **真實資料來源（Google Drive Sheet）**：
-   - 即時讀取 `Investment_Tracker_Core` 試算表作為唯一的資產與交易數據源。
-   - 所有資料在客戶端進行記憶體狀態快取，**絕對不回寫 Core 試算表**。
+   - 持股與交易的資料來源為私人帳本 **Our_Investment**（唯讀；`Investment_Tracker_Core` 已於 2026-11-15 退役封存，不再讀取）。
+   - Our_Investment 僅限擁有者存取，不得公開，因此不能用公開連結的 gviz CSV 讀取，需經 OAuth 唯讀（`googleAuth.ts` 已有 `spreadsheets.readonly`）。**目前程式尚未接入**，APP 現讀的公開 Sheet 為情報資料庫、波段觀察、00882 成分股股利、全市場 ETF 四份（見 `driveIds.ts`）。
+   - 所有資料在客戶端進行記憶體狀態快取，**絕對不回寫 Our_Investment，也不回寫 Core 試算表**。
 2. **AI 分析串接（Gemini API）**：
    - 伺服器端調用 Gemini API 模型進行市場情報總結與趨勢判讀。
    - 當未設定 `GEMINI_API_KEY` 時，系統應能平滑退回「純規則量化解析模式」，避免整站崩潰。

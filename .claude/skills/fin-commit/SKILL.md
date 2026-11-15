@@ -75,11 +75,11 @@ reinvest(00882): 股息 158,344 再投入 10 張 @15.08
 - **金額**: 150,800 TWD
 - **手續費**: 215
 - **理由**: 股利再投入
-- **來源**: Core/Transactions Tx_ID ad364a04
+- **來源**: Our_Investment/Transactions 交易編號 ad364a04
 
 ## 驗證
 
-- 10,000 × 15.08 = 150,800，與 Core/Transactions 一致
+- 10,000 × 15.08 = 150,800，與 Our_Investment/Transactions 一致
 
 ## 目標影響
 
