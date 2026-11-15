@@ -16,7 +16,7 @@
 ## 開發、擴充與提交鐵律
 
 1. **擴充規則與技能**：新增任何規則或技能時，請以 Claude 官方原生語法直接建立於 `.claude/rules/<rule-name>.md` 或 `.claude/skills/<skill-name>/`，並同步更新本檔與 `.agent/rules/AGENT.md` 的引用清單。
-2. **⛔ 嚴禁修改 Investment_Tracker_Core**：試算表為唯讀資料來源，禁止任何寫入、修改欄位或公式之操作。
+2. **⛔ 嚴禁修改 Investment_Tracker_Core**：Core 已於 2026-11-15 退役封存，不再作為資料來源；禁止任何寫入、修改欄位或公式之操作。持股與交易的資料來源改為私人帳本 Our_Investment（唯讀，ID 見 `DRIVE_IDS` 的 `OUR_INVESTMENT_SHEET_ID`），APP 一律不回寫。
 3. **驗證通過主動自動 Commit**：
    - 任何 TypeScript 變更必須先通過 `npm run lint`（`tsc --noEmit`）型別檢查；Python 變更必須於 Conda `ai-it-go` 環境通過 `pytest` 測試。
    - 使用者指示 commit 或任務完成時，Agent 必須主動調用 `.claude/skills/fin-commit` 技能完成全自動結構化提交與推送，不逐次詢問確認。

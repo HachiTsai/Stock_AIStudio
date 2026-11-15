@@ -215,7 +215,7 @@ def build_agent_directive(category: str, agent_label: str, stats: str, diff: str
 2. **[拆分]** 若混了多種行為（例：股利入帳＋再投入），用 `--stage-list` 拆成多個 commit。
 3. **[合規]** 依規格書 §3 選 type／scope；交易類必填「交易明細」，div 必填「股利明細」。
 4. **[類別]** 已自動判定為 **{category}**；需要覆蓋時重跑並帶 `--category`。
-5. **[核對]** 數量 × 價格 = 金額；數字以 Investment_Tracker_Core 為準（唯讀，嚴禁修改）。
+5. **[核對]** 數量 × 價格 = 金額；數字以 Our_Investment 為準（Core 已退役，嚴禁修改）。
 6. **[草擬]** 依規格書 §4 唯一模板寫出最終訊息（不提供多個選項），選用區塊依內容決定。
 7. **[提交]** 寫入 `{MESSAGE_FILE.as_posix()}`，執行：
    `python3 {script.as_posix()} --no-stage --message-file {MESSAGE_FILE.as_posix()}`
